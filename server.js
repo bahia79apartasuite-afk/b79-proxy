@@ -83,10 +83,15 @@ const server = http.createServer(async (req, res) => {
 
         const bookings = bookingsRes.data || bookingsRes || [];
 
-        // Solo checked_in=true Y checked_out=false = actualmente adentro
-        const activeBookings = bookings.filter(b =>
-          b.checked_in === true && b.checked_out === false
-        );
+        // Activos = checked_in=true Y checked_out=false
+        // O reserva que debería estar adentro: start_date <= hoy y checkout no hecho
+        const activeBookings = bookings.filter(b => {
+          if (b.checked_out === true) return false;
+          if (b.checked_in === true) return true;
+          // Reserva con fecha de entrada <= hoy (posiblemente no registró check-in)
+          if (b.start_date <= today) return true;
+          return false;
+        });
 
         const result = activeBookings
           .map(b => ({
