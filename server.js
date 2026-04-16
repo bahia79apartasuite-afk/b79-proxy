@@ -71,11 +71,9 @@ const server = http.createServer(async (req, res) => {
       // ── ROOMS: categories + bookings combined for B79 SISTEM ──
       case 'rooms':
       case 'inhouse': {
-        // Get room categories
-        const roomsRes = await lobbyFetch('/rooms');
-        // Get active bookings (checkin within last 30 days, checkout in next 30)
+        // Busca reservas de los últimos 30 días para capturar todos los huéspedes activos
         const dateFrom = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
-        const dateTo   = new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
+        const dateTo   = new Date(Date.now() + 1*24*60*60*1000).toISOString().slice(0,10);
         let bookingsRes;
         try {
           bookingsRes = await lobbyFetch('/bookings?checkin_from=' + dateFrom + '&checkin_to=' + dateTo);
@@ -83,58 +81,36 @@ const server = http.createServer(async (req, res) => {
           bookingsRes = { data: [] };
         }
 
-        const rooms = roomsRes.data || roomsRes || [];
         const bookings = bookingsRes.data || bookingsRes || [];
 
-        // Map: find active bookings (checked in or arriving today)
-        const activeBookings = bookings.filter(b => {
-          if (b.checked_in === true && b.checked_out === false) return true;
-          if (b.start_date === today && !b.checked_out) return true;
-          return false;
-        });
+        // Solo checked_in=true Y checked_out=false = actualmente adentro
+        const activeBookings = bookings.filter(b =>
+          b.checked_in === true && b.checked_out === false
+        );
 
-        // Build room list with booking info
-        const result = [];
-        rooms.forEach(room => {
-          const name = room.name || '';
-          // Extract room number from name (e.g. "CTG #11" → "11", or use category_id)
-          const numMatch = name.match(/#?(\d+)/);
-          const roomNum = numMatch ? numMatch[1] : String(room.category_id || '');
-
-          // Find booking for this room/category
-          const booking = activeBookings.find(b =>
-            b.category && (
-              b.category.category_id === room.category_id ||
-              (b.category.name || '').includes(roomNum) ||
-              String(b.room_number || '') === roomNum
-            )
-          );
-
-          // Use assigned_room.name as the room_number for direct matching
-          const assignedRoom = booking?.assigned_room?.name || roomNum;
-          result.push({
-            room_number: assignedRoom,
-            category_name: name,
-            category_id: room.category_id,
-            status: booking ? 'in_house' : 'available',
-            guest: booking ? {
-              name: ((booking.holder?.name || '') + ' ' + (booking.holder?.surname || '')).trim() ||
-                    booking.holder?.name || '',
-              phone: (booking.holder?.phone || booking.holder?.mobile || '').replace(/[^+0-9]/g,''),
-              email: booking.holder?.email || '',
-            } : null,
-            checkin:  booking ? booking.start_date  : null,
-            checkout: booking ? booking.end_date : null,
-            booking_id: booking ? booking.booking_id : null,
-          });
-        });
+        const result = activeBookings
+          .map(b => ({
+            room_number: b.assigned_room?.name || '',
+            category_name: b.category?.name || '',
+            category_id: b.category?.category_id || null,
+            status: 'in_house',
+            guest: {
+              name: ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim(),
+              phone: (b.holder?.phone || b.holder?.mobile || '').replace(/[^+0-9]/g,''),
+              email: b.holder?.email || '',
+            },
+            checkin:    b.start_date || null,
+            checkout:   b.end_date   || null,
+            booking_id: b.booking_id || null,
+          }))
+          .filter(r => r.room_number);
 
         res.writeHead(200, CORS_HEADERS);
-        res.end(JSON.stringify({ ok: true, action, data: result, raw_rooms: rooms.length, raw_bookings: bookings.length, active: activeBookings.length }));
+        res.end(JSON.stringify({ ok: true, action, data: result, raw_bookings: bookings.length, active: activeBookings.length }));
         return;
       }
 
-      case 'bookings': {
+            case 'bookings': {
         const dateFrom2 = url.searchParams.get('from') || new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
         const dateTo2   = url.searchParams.get('to')   || new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
         data = await lobbyFetch('/bookings?checkin_from=' + dateFrom2 + '&checkin_to=' + dateTo2);
@@ -174,6 +150,62 @@ const server = http.createServer(async (req, res) => {
         }
         res.writeHead(200, CORS_HEADERS);
         res.end(JSON.stringify({ ok: true, action: 'test', results }));
+        return;
+      }
+
+      case 'calendar': {
+        // Fetch all bookings for a date range (for calendar view)
+        const calFrom = url.searchParams.get('from') || new Date(Date.now() - 5*24*60*60*1000).toISOString().slice(0,10);
+        const calTo   = url.searchParams.get('to')   || new Date(Date.now() + 35*24*60*60*1000).toISOString().slice(0,10);
+        let calRes;
+        try {
+          calRes = await lobbyFetch('/bookings?checkin_from=' + calFrom + '&checkin_to=' + calTo);
+        } catch(e) {
+          calRes = { data: [] };
+        }
+        // Also get bookings that started before calFrom but end within range (long stays)
+        let calRes2;
+        try {
+          const longFrom = new Date(new Date(calFrom).getTime() - 30*24*60*60*1000).toISOString().slice(0,10);
+          calRes2 = await lobbyFetch('/bookings?checkin_from=' + longFrom + '&checkin_to=' + calFrom);
+        } catch(e) {
+          calRes2 = { data: [] };
+        }
+        
+        const allBookings = [
+          ...(calRes.data || []),
+          ...(calRes2.data || []).filter(b => b.end_date >= calFrom && !b.checked_out)
+        ];
+
+        // Remove duplicates
+        const seen = new Set();
+        const uniqueBookings = allBookings.filter(b => {
+          if (seen.has(b.booking_id)) return false;
+          seen.add(b.booking_id);
+          return true;
+        });
+
+        const result = uniqueBookings.map(b => ({
+          booking_id:   b.booking_id,
+          room:         b.assigned_room?.name || '',
+          category:     b.category?.name || '',
+          category_id:  b.category?.category_id,
+          guest:        ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim(),
+          phone:        (b.holder?.phone || '').replace(/[^+0-9]/g,''),
+          checkin:      b.start_date,
+          checkout:     b.end_date,
+          channel:      b.channel?.name || '',
+          channel_id:   b.channel?.channel_id,
+          checked_in:   b.checked_in,
+          checked_out:  b.checked_out,
+          total:        b.total_to_pay_accommodation || 0,
+          paid:         b.paid_out || 0,
+          nights:       Math.round((new Date(b.end_date) - new Date(b.start_date)) / 86400000),
+          note:         b.note || '',
+        }));
+
+        res.writeHead(200, CORS_HEADERS);
+        res.end(JSON.stringify({ ok: true, action: 'calendar', data: result, total: result.length }));
         return;
       }
 
