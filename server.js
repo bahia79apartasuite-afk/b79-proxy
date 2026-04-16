@@ -68,9 +68,12 @@ const server = http.createServer(async (req, res) => {
 
     switch(action) {
 
+      // ── ROOMS: categories + bookings combined for B79 SISTEM ──
       case 'rooms':
       case 'inhouse': {
+        // Get room categories
         const roomsRes = await lobbyFetch('/rooms');
+        // Get active bookings (checkin within last 30 days, checkout in next 30)
         const dateFrom = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
         const dateTo   = new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
         let bookingsRes;
@@ -79,20 +82,26 @@ const server = http.createServer(async (req, res) => {
         } catch(e) {
           bookingsRes = { data: [] };
         }
+
         const rooms = roomsRes.data || roomsRes || [];
         const bookings = bookingsRes.data || bookingsRes || [];
+
+        // Map: find active bookings (checked in or arriving today)
         const activeBookings = bookings.filter(b => {
-          const status = (b.status || '').toLowerCase();
-          return status === 'check_in' || status === 'checkin' ||
-                 status === 'in_house' || status === 'in-house' ||
-                 status === 'active' || status === 'confirmed' ||
-                 b.checkin === today || b.checkout === today;
+          if (b.checked_in === true && b.checked_out === false) return true;
+          if (b.start_date === today && !b.checked_out) return true;
+          return false;
         });
+
+        // Build room list with booking info
         const result = [];
         rooms.forEach(room => {
           const name = room.name || '';
+          // Extract room number from name (e.g. "CTG #11" → "11", or use category_id)
           const numMatch = name.match(/#?(\d+)/);
           const roomNum = numMatch ? numMatch[1] : String(room.category_id || '');
+
+          // Find booking for this room/category
           const booking = activeBookings.find(b =>
             b.category && (
               b.category.category_id === room.category_id ||
@@ -100,22 +109,26 @@ const server = http.createServer(async (req, res) => {
               String(b.room_number || '') === roomNum
             )
           );
+
+          // Use assigned_room.name as the room_number for direct matching
+          const assignedRoom = booking?.assigned_room?.name || roomNum;
           result.push({
-            room_number: roomNum,
+            room_number: assignedRoom,
             category_name: name,
             category_id: room.category_id,
             status: booking ? 'in_house' : 'available',
             guest: booking ? {
-              name: [booking.holder?.first_name, booking.holder?.last_name].filter(Boolean).join(' ') ||
-                    booking.holder?.name || booking.name || '',
-              phone: booking.holder?.phone || booking.holder?.mobile || booking.phone || '',
-              email: booking.holder?.email || booking.email || '',
+              name: ((booking.holder?.name || '') + ' ' + (booking.holder?.surname || '')).trim() ||
+                    booking.holder?.name || '',
+              phone: (booking.holder?.phone || booking.holder?.mobile || '').replace(/[^+0-9]/g,''),
+              email: booking.holder?.email || '',
             } : null,
-            checkin:  booking ? booking.checkin  : null,
-            checkout: booking ? booking.checkout : null,
+            checkin:  booking ? booking.start_date  : null,
+            checkout: booking ? booking.end_date : null,
             booking_id: booking ? booking.booking_id : null,
           });
         });
+
         res.writeHead(200, CORS_HEADERS);
         res.end(JSON.stringify({ ok: true, action, data: result, raw_rooms: rooms.length, raw_bookings: bookings.length, active: activeBookings.length }));
         return;
@@ -128,21 +141,25 @@ const server = http.createServer(async (req, res) => {
         break;
       }
 
-      case 'checkout_today':
+      case 'checkout_today': {
         data = await lobbyFetch('/bookings?checkout_from=' + today + '&checkout_to=' + today);
         break;
+      }
 
-      case 'checkin_today':
+      case 'checkin_today': {
         data = await lobbyFetch('/bookings?checkin_from=' + today + '&checkin_to=' + today);
         break;
+      }
 
-      case 'raw_rooms':
+      case 'raw_rooms': {
         data = await lobbyFetch('/rooms');
         break;
+      }
 
-      case 'raw_bookings':
+      case 'raw_bookings': {
         data = await lobbyFetch('/bookings?checkin_from=' + today + '&checkin_to=2026-12-31');
         break;
+      }
 
       case 'test': {
         const paths = ['/rooms', '/bookings'];
