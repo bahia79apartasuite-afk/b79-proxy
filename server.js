@@ -29,11 +29,12 @@ function lobbyFetch(path) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        console.log('LobbyPMS response:', res.statusCode, data.slice(0,300));
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try { resolve(JSON.parse(data)); }
-          catch(e) { reject(new Error('Parse error: ' + data.slice(0,100))); }
+          catch(e) { reject(new Error('Parse error: ' + data.slice(0,200))); }
         } else {
-          reject(new Error('LobbyPMS ' + res.statusCode + ': ' + data.slice(0,200)));
+          reject(new Error('HTTP_' + res.statusCode + ': ' + data.slice(0,300)));
         }
       });
     });
@@ -42,31 +43,38 @@ function lobbyFetch(path) {
   });
 }
 
+// Get server's outbound IP
+function getMyIP() {
+  return new Promise((resolve) => {
+    const req = https.get('https://api.ipify.org?format=json', (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).ip); }
+        catch(e) { resolve('unknown'); }
+      });
+    });
+    req.on('error', () => resolve('unknown'));
+  });
+}
+
 const server = http.createServer(async (req, res) => {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(200, CORS_HEADERS);
     res.end();
     return;
   }
 
-  // Only GET allowed
-  if (req.method !== 'GET') {
-    res.writeHead(405, CORS_HEADERS);
-    res.end(JSON.stringify({ error: 'Method not allowed' }));
-    return;
-  }
-
-  // Health check
-  if (req.url === '/' || req.url === '/health') {
-    res.writeHead(200, CORS_HEADERS);
-    res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running' }));
-    return;
-  }
-
-  // Parse action
   const url = new URL(req.url, 'http://localhost');
-  const action = url.searchParams.get('action') || 'rooms';
+  const action = url.searchParams.get('action') || 'health';
+
+  // Health + IP check
+  if (req.url === '/' || req.url === '/health' || action === 'health') {
+    const ip = await getMyIP();
+    res.writeHead(200, CORS_HEADERS);
+    res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', outbound_ip: ip }));
+    return;
+  }
 
   if (!LOBBY_TOKEN) {
     res.writeHead(500, CORS_HEADERS);
@@ -79,17 +87,26 @@ const server = http.createServer(async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
 
     switch(action) {
+      // Try multiple endpoint formats for room status
       case 'rooms':
-        data = await lobbyFetch('/rooms');
+        try { data = await lobbyFetch('/room-status'); }
+        catch(e1) {
+          try { data = await lobbyFetch('/rooms'); }
+          catch(e2) { throw new Error('rooms: ' + e1.message + ' | ' + e2.message); }
+        }
         break;
       case 'inhouse':
-        data = await lobbyFetch('/rooms?filter=in_house');
+        try { data = await lobbyFetch('/room-status?filter=in_house'); }
+        catch(e1) {
+          try { data = await lobbyFetch('/room-status'); }
+          catch(e2) { throw new Error(e1.message); }
+        }
         break;
       case 'checkin_today':
-        data = await lobbyFetch('/rooms?filter=checkin_today');
+        data = await lobbyFetch('/room-status?filter=checkin_today');
         break;
       case 'checkout_today':
-        data = await lobbyFetch('/rooms?filter=checkout_today');
+        data = await lobbyFetch('/room-status?filter=checkout_today');
         break;
       case 'bookings':
         data = await lobbyFetch('/bookings?checkin_from=' + today + '&checkin_to=' + today);
@@ -102,6 +119,21 @@ const server = http.createServer(async (req, res) => {
       case 'room_types':
         data = await lobbyFetch('/room-types');
         break;
+      // Test endpoint — tries multiple paths to find what works
+      case 'test':
+        const paths = ['/room-status', '/rooms', '/room-types', '/bookings'];
+        const results = {};
+        for (const p of paths) {
+          try {
+            const r = await lobbyFetch(p);
+            results[p] = { ok: true, sample: JSON.stringify(r).slice(0,100) };
+          } catch(e) {
+            results[p] = { ok: false, error: e.message };
+          }
+        }
+        res.writeHead(200, CORS_HEADERS);
+        res.end(JSON.stringify({ ok: true, action: 'test', results }));
+        return;
       default:
         res.writeHead(400, CORS_HEADERS);
         res.end(JSON.stringify({ ok: false, error: 'Accion desconocida: ' + action }));
@@ -112,6 +144,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ ok: true, action, data }));
 
   } catch(err) {
+    console.error('Error:', err.message);
     res.writeHead(500, CORS_HEADERS);
     res.end(JSON.stringify({ ok: false, error: err.message }));
   }
