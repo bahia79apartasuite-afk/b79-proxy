@@ -307,3 +307,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   log('info', 'B79 LobbyPMS Proxy v3.0 iniciado', { port: PORT, token_configured: !!LOBBY_TOKEN });
 });
+
+// v3.0
