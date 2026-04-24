@@ -12,6 +12,13 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
+function log(level, msg, extra) {
+  const ts = new Date().toISOString();
+  const out = { ts, level, msg };
+  if (extra !== undefined) out.extra = extra;
+  console.log(JSON.stringify(out));
+}
+
 function lobbyFetch(path) {
   return new Promise((resolve, reject) => {
     const url = new URL(LOBBY_BASE + path);
@@ -31,9 +38,9 @@ function lobbyFetch(path) {
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try { resolve(JSON.parse(data)); }
-          catch(e) { reject(new Error('Parse error: ' + data.slice(0,100))); }
+          catch(e) { reject(new Error('ParseError: ' + data.slice(0, 200))); }
         } else {
-          reject(new Error('HTTP_' + res.statusCode + ': ' + data.slice(0,300)));
+          reject(new Error('HTTP_' + res.statusCode + ': ' + data.slice(0, 400)));
         }
       });
     });
@@ -42,194 +49,261 @@ function lobbyFetch(path) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200, CORS_HEADERS); res.end(); return;
+// Estrategia doble: checkin_from primero, si falla usa creation_date_from
+async function fetchBookingsDual(dateFrom, dateTo) {
+  const errors = [];
+
+  try {
+    const r = await lobbyFetch('/bookings?checkin_from=' + dateFrom + '&checkin_to=' + dateTo);
+    const arr = r.data || r || [];
+    if (Array.isArray(arr)) {
+      log('info', 'OK via checkin_from', { count: arr.length });
+      return { data: arr, strategy: 'checkin_from' };
+    }
+  } catch(e) {
+    errors.push('checkin_from: ' + e.message);
+    log('warn', 'checkin_from fallo, intentando creation_date_from', e.message);
   }
 
-  const url = new URL(req.url, 'http://localhost');
+  try {
+    const r2 = await lobbyFetch('/bookings?creation_date_from=' + dateFrom + '&creation_date_to=' + dateTo);
+    const arr2 = r2.data || r2 || [];
+    if (Array.isArray(arr2)) {
+      log('info', 'OK via creation_date_from', { count: arr2.length });
+      return { data: arr2, strategy: 'creation_date_from' };
+    }
+  } catch(e2) {
+    errors.push('creation_date_from: ' + e2.message);
+  }
+
+  throw new Error('LobbyPMS no respondio: ' + errors.join(' | '));
+}
+
+function normalizeBooking(b, today) {
+  const guestName = ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim();
+  const roomNumber = b.assigned_room?.name || b.room_number || '';
+  const checkIn   = b.start_date || b.checkin_date || null;
+  const checkOut  = b.end_date || b.checkout_date || null;
+  const status    = b.checked_out ? 'checked_out' : b.checked_in ? 'checked_in' : 'reserved';
+
+  const warnings = [];
+  if (!guestName)  warnings.push('sin_nombre');
+  if (!roomNumber) warnings.push('sin_habitacion');
+  if (!checkIn)    warnings.push('sin_checkin');
+  if (!checkOut)   warnings.push('sin_checkout');
+  if (!b.checked_in && checkIn && checkIn <= today) warnings.push('check_in_pendiente');
+
+  return {
+    booking_id:    b.booking_id || null,
+    room_number:   roomNumber,
+    category_name: b.category?.name || '',
+    category_id:   b.category?.category_id || null,
+    status,
+    guest: {
+      name:  guestName || 'DATO INCOMPLETO',
+      phone: (b.holder?.phone || b.holder?.mobile || '').replace(/[^+0-9]/g, ''),
+      email: b.holder?.email || '',
+    },
+    checkin:     checkIn,
+    checkout:    checkOut,
+    channel:     b.channel?.name || '',
+    checked_in:  !!b.checked_in,
+    checked_out: !!b.checked_out,
+    total:       b.total_to_pay_accommodation || 0,
+    paid:        b.paid_out || 0,
+    note:        b.note || '',
+    warnings:    warnings.length ? warnings : null,
+    incomplete:  warnings.length > 0,
+  };
+}
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200, CORS_HEADERS);
+    res.end();
+    return;
+  }
+
+  const url    = new URL(req.url, 'http://localhost');
   const action = url.searchParams.get('action') || 'health';
+  const syncId = Date.now().toString(36);
+  const syncStart = Date.now();
+
+  log('info', 'request', { action, syncId });
 
   if (action === 'health' || req.url === '/' || req.url === '/health') {
     res.writeHead(200, CORS_HEADERS);
-    res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '2.0' }));
+    res.end(JSON.stringify({
+      ok: true, service: 'B79 LobbyPMS Proxy',
+      status: 'running', version: '3.0',
+      token_configured: !!LOBBY_TOKEN,
+    }));
     return;
   }
 
   if (!LOBBY_TOKEN) {
     res.writeHead(500, CORS_HEADERS);
-    res.end(JSON.stringify({ ok: false, error: 'LOBBY_TOKEN no configurado' }));
+    res.end(JSON.stringify({ ok: false, error: 'LOBBY_TOKEN no configurado en Render' }));
     return;
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+
   try {
-    let data;
-    const today = new Date().toISOString().slice(0, 10);
+    let responsePayload;
 
-    switch(action) {
+    switch (action) {
 
-      // ── ROOMS: categories + bookings combined for B79 SISTEM ──
-      case 'rooms':
-      case 'inhouse': {
-        // Busca reservas de los últimos 30 días para capturar todos los huéspedes activos
-        const dateFrom = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
-        const dateTo   = new Date(Date.now() + 1*24*60*60*1000).toISOString().slice(0,10);
-        let bookingsRes;
-        try {
-          bookingsRes = await lobbyFetch('/bookings?checkin_from=' + dateFrom + '&checkin_to=' + dateTo);
-        } catch(e) {
-          bookingsRes = { data: [] };
-        }
+      case 'inhouse':
+      case 'rooms': {
+        const dateFrom = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const dateTo   = new Date(Date.now() + 2  * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { data: bookings, strategy } = await fetchBookingsDual(dateFrom, dateTo);
 
-        const bookings = bookingsRes.data || bookingsRes || [];
-
-        // Activos = checked_in=true Y checked_out=false
-        // O reserva que debería estar adentro: start_date <= hoy y checkout no hecho
         const activeBookings = bookings.filter(b => {
           if (b.checked_out === true) return false;
-          if (b.checked_in === true) return true;
-          // Reserva con fecha de entrada <= hoy (posiblemente no registró check-in)
-          if (b.start_date <= today) return true;
+          if (b.checked_in  === true) return true;
+          const startDate = b.start_date || b.checkin_date || '';
+          if (startDate && startDate <= today) return true;
           return false;
         });
 
-        const result = activeBookings
-          .map(b => ({
-            room_number: b.assigned_room?.name || '',
-            category_name: b.category?.name || '',
-            category_id: b.category?.category_id || null,
-            status: 'in_house',
-            guest: {
-              name: ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim(),
-              phone: (b.holder?.phone || b.holder?.mobile || '').replace(/[^+0-9]/g,''),
-              email: b.holder?.email || '',
-            },
-            checkin:    b.start_date || null,
-            checkout:   b.end_date   || null,
-            booking_id: b.booking_id || null,
-          }))
+        const normalized = activeBookings
+          .map(b => normalizeBooking(b, today))
           .filter(r => r.room_number);
 
-        res.writeHead(200, CORS_HEADERS);
-        res.end(JSON.stringify({ ok: true, action, data: result, raw_bookings: bookings.length, active: activeBookings.length }));
-        return;
-      }
+        const incompleteCount = normalized.filter(r => r.incomplete).length;
 
-            case 'bookings': {
-        const dateFrom2 = url.searchParams.get('from') || new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
-        const dateTo2   = url.searchParams.get('to')   || new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
-        data = await lobbyFetch('/bookings?checkin_from=' + dateFrom2 + '&checkin_to=' + dateTo2);
+        log('info', 'inhouse result', { syncId, strategy, raw: bookings.length, active: activeBookings.length, withRoom: normalized.length });
+
+        responsePayload = {
+          ok: true, action, syncId, strategy,
+          syncMs: Date.now() - syncStart,
+          data: normalized,
+          summary: {
+            raw_bookings:     bookings.length,
+            active_bookings:  activeBookings.length,
+            with_room:        normalized.length,
+            incomplete_count: incompleteCount,
+            synced_at:        new Date().toISOString(),
+          },
+        };
         break;
       }
 
-      case 'checkout_today': {
-        data = await lobbyFetch('/bookings?checkout_from=' + today + '&checkout_to=' + today);
+      case 'bookings': {
+        const dateFrom = url.searchParams.get('from') || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const dateTo   = url.searchParams.get('to')   || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { data, strategy } = await fetchBookingsDual(dateFrom, dateTo);
+        const normalized = data.map(b => normalizeBooking(b, today));
+        responsePayload = { ok: true, action, syncId, strategy, data: normalized, total: normalized.length };
         break;
       }
 
       case 'checkin_today': {
-        data = await lobbyFetch('/bookings?checkin_from=' + today + '&checkin_to=' + today);
+        const { data, strategy } = await fetchBookingsDual(today, today);
+        const filtered = data.filter(b => (b.start_date || b.checkin_date) === today);
+        const normalized = filtered.map(b => normalizeBooking(b, today));
+        responsePayload = { ok: true, action, syncId, strategy, data: normalized, total: normalized.length };
         break;
       }
 
-      case 'raw_rooms': {
-        data = await lobbyFetch('/rooms');
-        break;
-      }
-
-      case 'raw_bookings': {
-        data = await lobbyFetch('/bookings?checkin_from=' + today + '&checkin_to=2026-12-31');
-        break;
-      }
-
-      case 'test': {
-        const paths = ['/rooms', '/bookings'];
-        const results = {};
-        for (const p of paths) {
-          try {
-            const r = await lobbyFetch(p);
-            results[p] = { ok: true, sample: JSON.stringify(r).slice(0,150) };
-          } catch(e) {
-            results[p] = { ok: false, error: e.message };
-          }
+      case 'checkout_today': {
+        let coData = [], coStrategy = '';
+        try {
+          const r = await lobbyFetch('/bookings?checkout_from=' + today + '&checkout_to=' + today);
+          coData = r.data || r || [];
+          coStrategy = 'checkout_from';
+        } catch(e) {
+          log('warn', 'checkout_today: checkout_from fallo, usando dual', e.message);
+          const from60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const { data: d2, strategy: s2 } = await fetchBookingsDual(from60, today);
+          coData = d2.filter(b => (b.end_date || b.checkout_date) === today);
+          coStrategy = s2 + '_filtered';
         }
-        res.writeHead(200, CORS_HEADERS);
-        res.end(JSON.stringify({ ok: true, action: 'test', results }));
-        return;
+        const normalized = coData.map(b => normalizeBooking(b, today));
+        responsePayload = { ok: true, action, syncId, strategy: coStrategy, data: normalized, total: normalized.length };
+        break;
       }
 
       case 'calendar': {
-        // Fetch all bookings for a date range (for calendar view)
-        const calFrom = url.searchParams.get('from') || new Date(Date.now() - 5*24*60*60*1000).toISOString().slice(0,10);
-        const calTo   = url.searchParams.get('to')   || new Date(Date.now() + 35*24*60*60*1000).toISOString().slice(0,10);
-        let calRes;
-        try {
-          calRes = await lobbyFetch('/bookings?checkin_from=' + calFrom + '&checkin_to=' + calTo);
-        } catch(e) {
-          calRes = { data: [] };
-        }
-        // Also get bookings that started before calFrom but end within range (long stays)
-        let calRes2;
-        try {
-          const longFrom = new Date(new Date(calFrom).getTime() - 30*24*60*60*1000).toISOString().slice(0,10);
-          calRes2 = await lobbyFetch('/bookings?checkin_from=' + longFrom + '&checkin_to=' + calFrom);
-        } catch(e) {
-          calRes2 = { data: [] };
-        }
-        
-        const allBookings = [
-          ...(calRes.data || []),
-          ...(calRes2.data || []).filter(b => b.end_date >= calFrom && !b.checked_out)
-        ];
+        const calFrom = url.searchParams.get('from') || new Date(Date.now() - 5  * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const calTo   = url.searchParams.get('to')   || new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { data: d1, strategy: s1 } = await fetchBookingsDual(calFrom, calTo);
 
-        // Remove duplicates
+        let d2 = [];
+        try {
+          const longFrom = new Date(new Date(calFrom).getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const r2 = await fetchBookingsDual(longFrom, calFrom);
+          d2 = r2.data.filter(b => {
+            const co = b.end_date || b.checkout_date || '';
+            return co >= calFrom && b.checked_out !== true;
+          });
+        } catch(e) { log('warn', 'calendar: no se cargaron estancias largas', e.message); }
+
         const seen = new Set();
-        const uniqueBookings = allBookings.filter(b => {
+        const all  = [...d1, ...d2].filter(b => {
           if (seen.has(b.booking_id)) return false;
           seen.add(b.booking_id);
           return true;
         });
 
-        const result = uniqueBookings.map(b => ({
-          booking_id:   b.booking_id,
-          room:         b.assigned_room?.name || '',
-          category:     b.category?.name || '',
-          category_id:  b.category?.category_id,
-          guest:        ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim(),
-          phone:        (b.holder?.phone || '').replace(/[^+0-9]/g,''),
-          checkin:      b.start_date,
-          checkout:     b.end_date,
-          channel:      b.channel?.name || '',
-          channel_id:   b.channel?.channel_id,
-          checked_in:   b.checked_in,
-          checked_out:  b.checked_out,
-          total:        b.total_to_pay_accommodation || 0,
-          paid:         b.paid_out || 0,
-          nights:       Math.round((new Date(b.end_date) - new Date(b.start_date)) / 86400000),
-          note:         b.note || '',
-        }));
-
-        res.writeHead(200, CORS_HEADERS);
-        res.end(JSON.stringify({ ok: true, action: 'calendar', data: result, total: result.length }));
-        return;
+        const normalized = all.map(b => normalizeBooking(b, today));
+        responsePayload = { ok: true, action, syncId, strategy: s1, data: normalized, total: normalized.length };
+        break;
       }
 
-      default:
+      case 'raw_rooms': {
+        const data = await lobbyFetch('/rooms');
+        responsePayload = { ok: true, action, syncId, data };
+        break;
+      }
+
+      case 'raw_bookings': {
+        const { data, strategy } = await fetchBookingsDual(today, new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+        responsePayload = { ok: true, action, syncId, strategy, data, total: data.length };
+        break;
+      }
+
+      case 'test': {
+        const results = {};
+        try {
+          const r = await lobbyFetch('/rooms');
+          results['/rooms'] = { ok: true, sample: JSON.stringify(r).slice(0, 200) };
+        } catch(e) { results['/rooms'] = { ok: false, error: e.message }; }
+
+        try {
+          const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const dateTo   = new Date(Date.now() + 1  * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          const { data, strategy } = await fetchBookingsDual(dateFrom, dateTo);
+          results['/bookings'] = { ok: true, strategy, count: data.length, sample: JSON.stringify(data[0] || {}).slice(0, 200) };
+        } catch(e) { results['/bookings'] = { ok: false, error: e.message }; }
+
+        responsePayload = { ok: true, action: 'test', syncId, version: '3.0', token_ok: !!LOBBY_TOKEN, results };
+        break;
+      }
+
+      default: {
         res.writeHead(400, CORS_HEADERS);
         res.end(JSON.stringify({ ok: false, error: 'Accion desconocida: ' + action }));
         return;
+      }
     }
 
+    log('info', 'response sent', { action, syncId, ms: Date.now() - syncStart });
     res.writeHead(200, CORS_HEADERS);
-    res.end(JSON.stringify({ ok: true, action, data }));
+    res.end(JSON.stringify(responsePayload));
 
-  } catch(err) {
-    console.error('Error:', err.message);
+  } catch (err) {
+    log('error', 'server error', { action, syncId, error: err.message });
     res.writeHead(500, CORS_HEADERS);
-    res.end(JSON.stringify({ ok: false, error: err.message }));
+    res.end(JSON.stringify({
+      ok: false, error: err.message, action, syncId,
+      hint: 'Verifica LOBBY_TOKEN en Render y que IP proxy este en whitelist de LobbyPMS',
+    }));
   }
 });
 
 server.listen(PORT, () => {
-  console.log('B79 LobbyPMS Proxy v2.0 corriendo en puerto ' + PORT);
+  log('info', 'B79 LobbyPMS Proxy v3.0 iniciado', { port: PORT, token_configured: !!LOBBY_TOKEN });
 });
