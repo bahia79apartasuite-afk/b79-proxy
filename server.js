@@ -44,6 +44,38 @@ function verifyToken(req) {
   return false;
 }
 
+// Fetch with redirect support
+function fetchURL(urlStr, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    function doRequest(currentUrl, remainingRedirects) {
+      const parsedUrl = new URL(currentUrl);
+      const opts = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        headers: { 'User-Agent': 'B79-Proxy/3.2', 'Accept': '*/*' }
+      };
+      const req = https.request(opts, res => {
+        // Handle redirects
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && remainingRedirects > 0) {
+          const newUrl = res.headers.location.startsWith('http') 
+            ? res.headers.location 
+            : parsedUrl.origin + res.headers.location;
+          res.resume(); // Consume and discard response body
+          return doRequest(newUrl, remainingRedirects - 1);
+        }
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => resolve({ status: res.statusCode, body: data, contentType: res.headers['content-type'] || '' }));
+      });
+      req.on('error', reject);
+      req.setTimeout(15000, () => { req.abort(); reject(new Error('Timeout')); });
+      req.end();
+    }
+    doRequest(urlStr, maxRedirects);
+  });
+}
+
 function fetchLobby(path) {
   return new Promise((resolve, reject) => {
     const url = new URL(LOBBY_BASE + path);
@@ -63,16 +95,6 @@ function fetchLobby(path) {
     });
     req.on('error', reject);
     req.end();
-  });
-}
-
-function fetchNetlify(path) {
-  return new Promise((resolve, reject) => {
-    https.get(NETLIFY_BASE + path, res => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => resolve(data));
-    }).on('error', reject);
   });
 }
 
@@ -96,7 +118,7 @@ const LOBBY_SYNC_JS = `
 const PROXY_BASE_FACT = 'https://b79-proxy.onrender.com';
 async function sincronizarLobbyFact() {
   const statusEl = document.getElementById('lobby-sync-status');
-  if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS…';statusEl.style.color='#1565C0';}
+  if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS\u2026';statusEl.style.color='#1565C0';}
   try {
     const res = await fetch(PROXY_BASE_FACT+'/?action=facturacion',{headers:{'X-B79-Token':'b79secure2024'}});
     if(!res.ok)throw new Error('HTTP '+res.status);
@@ -156,12 +178,19 @@ function normalizeForBilling(b) {
     document: b.guest?.document || b.guest?.id_number || '',
     room: b.room?.name || b.room_number || b.room || '',
     category: b.room?.room_type?.name || b.room_type || b.category || '',
-    checkin, checkout, nights,
-    rate, subtotal, iva, total: subtotal + iva,
+    checkin, checkout, nights, rate, subtotal, iva, total: subtotal + iva,
     status: b.status || '',
     notes: b.notes || b.observations || ''
   };
 }
+
+const PAGE_MAP = {
+  'aseo': '/b79-aseo/',
+  'facturacion': '/b79-facturacion/',
+  'jacuzzi': '/b79-jacuzzi/',
+  'cajamenor': '/b79-caja-menor/',
+  'index': '/',
+};
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
@@ -175,49 +204,39 @@ const server = http.createServer(async (req, res) => {
 
   log('info', 'request', { method: req.method, url: req.url, action });
 
-  // ============ STATIC HTML SERVING (proxy-modified pages) ============
+  // ============ HEALTH CHECK (no auth required) ============
+  if (!action || action === 'health') {
+    res.writeHead(200, CORS_HEADERS);
+    return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
+  }
+
+  // ============ STATIC HTML SERVING (no auth required) ============
   if (action === 'html') {
-    const pageMap = {
-      'aseo': '/b79-aseo.html',
-      'facturacion': '/b79-facturacion.html',
-      'jacuzzi': '/b79-jacuzzi.html',
-      'cajamenor': '/b79-caja-menor.html',
-      'index': '/',
-    };
-    const netPath = pageMap[page];
+    const netPath = PAGE_MAP[page];
     if (!netPath) {
       res.writeHead(404, HTML_CORS_HEADERS);
-      return res.end('<html><body>Page not found. Use ?action=html&page=aseo|facturacion|jacuzzi|cajamenor</body></html>');
+      return res.end('<html><body><h2>Page not found</h2><p>Use ?action=html&page=aseo|facturacion|jacuzzi|cajamenor|index</p></body></html>');
     }
     try {
-      let html = await fetchNetlify(netPath);
+      const result = await fetchURL(NETLIFY_BASE + netPath);
+      let html = result.body;
       if (page === 'aseo') html = modifyAseoHTML(html);
       else if (page === 'facturacion') html = modifyGenericHTML(html, true);
+      else if (page === 'index') html = html.replace('</head>', PORTAL_CSS + '\n</head>');
       else html = modifyGenericHTML(html, false);
       res.writeHead(200, HTML_CORS_HEADERS);
       return res.end(html);
     } catch(e) {
+      log('error', 'html fetch error', e.message);
       res.writeHead(500, HTML_CORS_HEADERS);
-      return res.end('<html><body>Error fetching page: ' + e.message + '</body></html>');
+      return res.end('<html><body><h2>Error</h2><p>' + e.message + '</p></body></html>');
     }
   }
 
-  // ============ HEALTH CHECK ============
-  if (action === 'health' || req.url === '/health' || req.url === '/') {
-    if (action === '' && req.url === '/') {
-      res.writeHead(200, CORS_HEADERS);
-      return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
-    }
-  }
-
+  // All other actions require auth
   if (!verifyToken(req)) {
     res.writeHead(401, CORS_HEADERS);
     return res.end(JSON.stringify({ error: 'Unauthorized', message: 'Missing or invalid X-B79-Token header' }));
-  }
-
-  if (action === 'health') {
-    res.writeHead(200, CORS_HEADERS);
-    return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
   }
 
   if (action === 'inhouse' || action === 'rooms') {
