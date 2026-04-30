@@ -5,364 +5,268 @@ const LOBBY_USER = process.env.LOBBY_USER || 'developers';
 const LOBBY_PASS = process.env.LOBBY_PASS || '';
 const LOBBY_TOKEN = process.env.LOBBY_TOKEN;
 const PORT = process.env.PORT || 3000;
-const LOBBY_BASE = 'https://api.lobbypms.com/api/v1';
+const LOBBY_BASE = 'https://app.lobbypms.com/api/v1';
+const NETLIFY_BASE = 'https://b79systemcleaning.netlify.app';
 
 const CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-B79-Token',
+  'Content-Type': 'application/json',
+};
+
+const HTML_CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Content-Type': 'text/html; charset=utf-8',
 };
 
 function log(level, msg, extra) {
-    const ts = new Date().toISOString();
-    const out = { ts, level, msg };
-    if (extra !== undefined) out.extra = extra;
-    console.log(JSON.stringify(out));
+  const ts = new Date().toISOString();
+  const out = { ts, level, msg };
+  if (extra !== undefined) out.extra = extra;
+  console.log(JSON.stringify(out));
 }
 
-// Build auth header: Bearer token if configured, otherwise Basic auth
 function getAuthHeader() {
-    if (LOBBY_TOKEN) return 'Bearer ' + LOBBY_TOKEN;
-    if (LOBBY_USER && LOBBY_PASS) {
-          const cred = Buffer.from(LOBBY_USER + ':' + LOBBY_PASS).toString('base64');
-          return 'Basic ' + cred;
-    }
-    return '';
+  if (LOBBY_TOKEN) return 'Bearer ' + LOBBY_TOKEN;
+  if (LOBBY_USER && LOBBY_PASS) {
+    const cred = Buffer.from(LOBBY_USER + ':' + LOBBY_PASS).toString('base64');
+    return 'Basic ' + cred;
+  }
+  return '';
 }
 
-function lobbyFetch(path) {
-    return new Promise((resolve, reject) => {
-          const url = new URL(LOBBY_BASE + path);
-          const options = {
-                  hostname: url.hostname,
-                  path: url.pathname + url.search,
-                  method: 'GET',
-                  headers: {
-                            'Authorization': getAuthHeader(),
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                  },
-          };
-          const req = https.request(options, (res) => {
-                  let data = '';
-                  res.on('data', chunk => data += chunk);
-                  res.on('end', () => {
-                            if (res.statusCode >= 200 && res.statusCode < 300) {
-                                        try { resolve(JSON.parse(data)); }
-                                        catch(e) { reject(new Error('ParseError: ' + data.slice(0, 200))); }
-                            } else {
-                                        reject(new Error('HTTP_' + res.statusCode + ': ' + data.slice(0, 400)));
-                            }
-                  });
-          });
-          req.on('error', reject);
-          req.end();
+function verifyToken(req) {
+  const auth = req.headers['authorization'] || '';
+  const xtoken = req.headers['x-b79-token'] || '';
+  if (auth === 'Bearer b79secure2024') return true;
+  if (xtoken === 'b79secure2024') return true;
+  return false;
+}
+
+function fetchLobby(path) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(LOBBY_BASE + path);
+    const opts = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: 'GET',
+      headers: { 'Authorization': getAuthHeader(), 'Content-Type': 'application/json', 'Accept': 'application/json' }
+    };
+    const req = https.request(opts, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch(e) { resolve({ status: res.statusCode, body: data }); }
+      });
     });
+    req.on('error', reject);
+    req.end();
+  });
 }
 
-// Estrategia doble: checkin_from primero, si falla usa creation_date_from
-async function fetchBookingsDual(dateFrom, dateTo) {
-    const errors = [];
-
-  try {
-        const r = await lobbyFetch('/bookings?checkin_from=' + dateFrom + '&checkin_to=' + dateTo);
-        const arr = r.data || r || [];
-        if (Array.isArray(arr)) {
-                log('info', 'OK via checkin_from', { count: arr.length });
-                return { data: arr, strategy: 'checkin_from' };
-        }
-  } catch(e) {
-        errors.push('checkin_from: ' + e.message);
-        log('warn', 'checkin_from fallo, intentando creation_date_from', e.message);
-  }
-
-  try {
-        const r2 = await lobbyFetch('/bookings?creation_date_from=' + dateFrom + '&creation_date_to=' + dateTo);
-        const arr2 = r2.data || r2 || [];
-        if (Array.isArray(arr2)) {
-                log('info', 'OK via creation_date_from', { count: arr2.length });
-                return { data: arr2, strategy: 'creation_date_from' };
-        }
-  } catch(e2) {
-        errors.push('creation_date_from: ' + e2.message);
-  }
-
-  throw new Error('LobbyPMS no respondio: ' + errors.join(' | '));
+function fetchNetlify(path) {
+  return new Promise((resolve, reject) => {
+    https.get(NETLIFY_BASE + path, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
 }
 
-function normalizeBooking(b, today) {
-    const guestName = ((b.holder?.name || '') + ' ' + (b.holder?.surname || '')).trim();
-    const roomNumber = b.assigned_room?.name || b.room_number || '';
-    const checkIn = b.start_date || b.checkin_date || null;
-    const checkOut = b.end_date || b.checkout_date || null;
-    const status = b.checked_out ? 'checked_out' : b.checked_in ? 'checked_in' : 'reserved';
+const PORTAL_URL = 'https://b79systemcleaning.netlify.app/';
 
-  const warnings = [];
-    if (!guestName) warnings.push('sin_nombre');
-    if (!roomNumber) warnings.push('sin_habitacion');
-    if (!checkIn) warnings.push('sin_checkin');
-    if (!checkOut) warnings.push('sin_checkout');
-    if (!b.checked_in && checkIn && checkIn <= today) warnings.push('check_in_pendiente');
+const PORTAL_CSS = `<style id="portal-nav-styles">
+.portal-btn{display:inline-flex!important;align-items:center!important;gap:6px!important;padding:8px 16px!important;background:linear-gradient(135deg,#1a237e 0%,#283593 100%)!important;color:#fff!important;border:none!important;border-radius:8px!important;font-size:13px!important;font-weight:600!important;text-decoration:none!important;cursor:pointer!important;box-shadow:0 2px 8px rgba(26,35,126,0.3)!important;transition:all 0.2s ease!important;white-space:nowrap!important}
+.portal-btn:hover{background:linear-gradient(135deg,#283593 0%,#3949ab 100%)!important;box-shadow:0 4px 12px rgba(26,35,126,0.4)!important;transform:translateY(-1px)!important;color:#fff!important;text-decoration:none!important}
+</style>`;
 
+const PORTAL_BTN = `<a href="${PORTAL_URL}" class="portal-btn" title="Regresar al Portal B79">&#127968; Regresar al portal</a>`;
+
+const SYNC_UI = `<div id="lobby-sync-bar" style="background:#E3F2FD;border-bottom:1px solid #90CAF9;padding:8px 24px;display:flex;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap;">
+  <span style="font-weight:600;color:#1565C0;">&#127968; Lobby PMS:</span>
+  <span id="lobby-sync-status" style="color:#555;">Conectando&hellip;</span>
+  <button onclick="sincronizarLobbyFact()" style="margin-left:auto;padding:6px 14px;background:#1565C0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">&#8635; Sincronizar ahora</button>
+</div>`;
+
+const LOBBY_SYNC_JS = `
+// ============ LOBBY PMS INTEGRATION v2 ============
+const PROXY_BASE_FACT = 'https://b79-proxy.onrender.com';
+async function sincronizarLobbyFact() {
+  const statusEl = document.getElementById('lobby-sync-status');
+  if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS…';statusEl.style.color='#1565C0';}
+  try {
+    const res = await fetch(PROXY_BASE_FACT+'/?action=facturacion',{headers:{'X-B79-Token':'b79secure2024'}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if(data.error)throw new Error(data.error);
+    const reservas = data.data||[];
+    window._lobbyReservas = reservas;
+    if(statusEl){statusEl.textContent=reservas.length+' reservas de Lobby PMS';statusEl.style.color='#2E7D32';}
+    const tb = document.querySelector('#reservas-table tbody,#facturas-body,.reservas-body');
+    if(tb){
+      tb.innerHTML='';
+      reservas.slice(0,50).forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML='<td>'+(r.id||'')+'</td><td>'+(r.guest||'')+'</td><td>'+(r.room||'')+'</td><td>'+(r.checkin||'')+'</td><td>'+(r.checkout||'')+'</td><td>'+(r.nights||0)+'</td><td>$'+((r.subtotal||0).toLocaleString())+'</td><td>'+(r.status||'')+'</td>';
+        tb.appendChild(tr);
+      });
+    }
+  }catch(e){
+    if(statusEl){statusEl.textContent='Error: '+e.message;statusEl.style.color='#C62828';}
+    console.error('LobbyPMS:',e);
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(sincronizarLobbyFact,1500));
+// ============ END LOBBY PMS INTEGRATION ============`;
+
+function modifyGenericHTML(html, isFacturacion) {
+  html = html.replace('</head>', PORTAL_CSS + '\n</head>');
+  html = html.replace(
+    'class="brand"><div class="brand-logo">B7</div>',
+    `class="brand" style="cursor:pointer;" onclick="window.location='${PORTAL_URL}'"><div class="brand-logo">B7</div>`
+  );
+  html = html.replace('<div class="topbar-right">', `<div class="topbar-right">\n${PORTAL_BTN}`);
+  if (isFacturacion) {
+    html = html.replace(/(<\/script>\s*<\/body>)/, '\n' + LOBBY_SYNC_JS + '\n</script>\n</body>');
+    html = html.replace('<body>', '<body>\n' + SYNC_UI);
+  }
+  return html;
+}
+
+function modifyAseoHTML(html) {
+  html = html.replace('</head>', PORTAL_CSS + '\n</head>');
+  html = html.replace(/class="tb-logo" href="[^"]*"/, `class="tb-logo" href="${PORTAL_URL}"`);
+  html = html.replace('class="tb-right">', `class="tb-right">\n    ${PORTAL_BTN}`);
+  return html;
+}
+
+function normalizeForBilling(b) {
+  const checkin = b.checkin || b.check_in || b.arrival_date || b.from || '';
+  const checkout = b.checkout || b.check_out || b.departure_date || b.to || '';
+  const nights = b.nights || b.number_of_nights || 0;
+  const rate = b.rate || b.room_rate || b.daily_rate || 0;
+  const subtotal = rate * nights || b.total || b.amount || 0;
+  const iva = Math.round(subtotal * 0.19);
   return {
-        booking_id: b.booking_id || b.id || null,
-        room_number: roomNumber,
-        category_name: b.category?.name || b.room_type?.name || '',
-        category_id: b.category?.category_id || b.category?.id || null,
-        status,
-        guest: {
-                name: guestName || 'DATO INCOMPLETO',
-                phone: (b.holder?.phone || b.holder?.mobile || b.holder?.telephone || '').replace(/[^+0-9]/g, ''),
-                email: b.holder?.email || '',
-                document: b.holder?.document || b.holder?.id_number || '',
-        },
-        checkin: checkIn,
-        checkout: checkOut,
-        channel: b.channel?.name || b.source || '',
-        checked_in: !!b.checked_in,
-        checked_out: !!b.checked_out,
-        total: b.total_to_pay_accommodation || b.total || b.amount || 0,
-        paid: b.paid_out || b.paid || 0,
-        note: b.note || b.comments || '',
-        warnings: warnings.length ? warnings : null,
-        incomplete: warnings.length > 0,
+    id: b.booking_id || b.reservation_id || b.id || '',
+    guest: b.guest?.name || b.guest_name || b.client || '',
+    document: b.guest?.document || b.guest?.id_number || '',
+    room: b.room?.name || b.room_number || b.room || '',
+    category: b.room?.room_type?.name || b.room_type || b.category || '',
+    checkin, checkout, nights,
+    rate, subtotal, iva, total: subtotal + iva,
+    status: b.status || '',
+    notes: b.notes || b.observations || ''
   };
 }
 
-// Normalize for billing/facturacion
-function normalizeForBilling(b, today) {
-    const base = normalizeBooking(b, today);
-    return {
-          ...base,
-          nights: (() => {
-                  if (base.checkin && base.checkout) {
-                            const d1 = new Date(base.checkin);
-                            const d2 = new Date(base.checkout);
-                            return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
-                  }
-                  return 1;
-          })(),
-          subtotal: base.total,
-          iva: Math.round((base.total || 0) * 0.19),
-          total_with_iva: base.total + Math.round((base.total || 0) * 0.19),
-          reservation_id: base.booking_id,
-    };
-}
-
 const server = http.createServer(async (req, res) => {
-    if (req.method === 'OPTIONS') {
-          res.writeHead(200, CORS_HEADERS);
-          res.end();
-          return;
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200, CORS_HEADERS);
+    return res.end();
+  }
+
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const action = url.searchParams.get('action') || '';
+  const page = url.searchParams.get('page') || '';
+
+  log('info', 'request', { method: req.method, url: req.url, action });
+
+  // ============ STATIC HTML SERVING (proxy-modified pages) ============
+  if (action === 'html') {
+    const pageMap = {
+      'aseo': '/b79-aseo.html',
+      'facturacion': '/b79-facturacion.html',
+      'jacuzzi': '/b79-jacuzzi.html',
+      'cajamenor': '/b79-caja-menor.html',
+      'index': '/',
+    };
+    const netPath = pageMap[page];
+    if (!netPath) {
+      res.writeHead(404, HTML_CORS_HEADERS);
+      return res.end('<html><body>Page not found. Use ?action=html&page=aseo|facturacion|jacuzzi|cajamenor</body></html>');
     }
-
-                                   const url = new URL(req.url, 'http://localhost');
-    const action = url.searchParams.get('action') || 'health';
-    const syncId = Date.now().toString(36);
-    const syncStart = Date.now();
-
-                                   log('info', 'request', { action, syncId });
-
-                                   if (action === 'health' || req.url === '/' || req.url === '/health') {
-                                         res.writeHead(200, CORS_HEADERS);
-                                         res.end(JSON.stringify({
-                                                 ok: true, service: 'B79 LobbyPMS Proxy',
-                                                 status: 'running', version: '3.1',
-                                                 auth_mode: LOBBY_TOKEN ? 'bearer_token' : (LOBBY_USER ? 'basic_auth' : 'none'),
-                                                 token_configured: !!(LOBBY_TOKEN || LOBBY_PASS),
-                                         }));
-                                         return;
-                                   }
-
-                                   const hasAuth = !!(LOBBY_TOKEN || LOBBY_PASS);
-    if (!hasAuth) {
-          res.writeHead(500, CORS_HEADERS);
-          res.end(JSON.stringify({ ok: false, error: 'Auth no configurada. Configura LOBBY_TOKEN o LOBBY_PASS en Render' }));
-          return;
+    try {
+      let html = await fetchNetlify(netPath);
+      if (page === 'aseo') html = modifyAseoHTML(html);
+      else if (page === 'facturacion') html = modifyGenericHTML(html, true);
+      else html = modifyGenericHTML(html, false);
+      res.writeHead(200, HTML_CORS_HEADERS);
+      return res.end(html);
+    } catch(e) {
+      res.writeHead(500, HTML_CORS_HEADERS);
+      return res.end('<html><body>Error fetching page: ' + e.message + '</body></html>');
     }
+  }
 
-                                   const today = new Date().toISOString().slice(0, 10);
+  // ============ HEALTH CHECK ============
+  if (action === 'health' || req.url === '/health' || req.url === '/') {
+    if (action === '' && req.url === '/') {
+      res.writeHead(200, CORS_HEADERS);
+      return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
+    }
+  }
 
-                                   try {
-                                         let responsePayload;
+  if (!verifyToken(req)) {
+    res.writeHead(401, CORS_HEADERS);
+    return res.end(JSON.stringify({ error: 'Unauthorized', message: 'Missing or invalid X-B79-Token header' }));
+  }
 
-      switch (action) {
+  if (action === 'health') {
+    res.writeHead(200, CORS_HEADERS);
+    return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
+  }
 
-        case 'inhouse':
-        case 'rooms': {
-                  const dateFrom = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const dateTo = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const { data: bookings, strategy } = await fetchBookingsDual(dateFrom, dateTo);
-
-                  const activeBookings = bookings.filter(b => {
-                              if (b.checked_out === true) return false;
-                              if (b.checked_in === true) return true;
-                              const startDate = b.start_date || b.checkin_date || '';
-                              if (startDate && startDate <= today) return true;
-                              return false;
-                  });
-
-                  const normalized = activeBookings
-                    .map(b => normalizeBooking(b, today))
-                    .filter(r => r.room_number);
-
-                  const incompleteCount = normalized.filter(r => r.incomplete).length;
-
-                  log('info', 'inhouse result', { syncId, strategy, raw: bookings.length, active: activeBookings.length, withRoom: normalized.length });
-
-                  responsePayload = {
-                              ok: true, action, syncId, strategy,
-                              syncMs: Date.now() - syncStart,
-                              data: normalized,
-                              summary: {
-                                            raw_bookings: bookings.length,
-                                            active_bookings: activeBookings.length,
-                                            with_room: normalized.length,
-                                            incomplete_count: incompleteCount,
-                                            synced_at: new Date().toISOString(),
-                              },
-                  };
-                  break;
-        }
-
-        case 'facturacion':
-        case 'billing': {
-                  const dateFrom = url.searchParams.get('from') || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const dateTo = url.searchParams.get('to') || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const { data, strategy } = await fetchBookingsDual(dateFrom, dateTo);
-                  const normalized = data
-                    .filter(b => !b.checked_out)
-                    .map(b => normalizeForBilling(b, today));
-                  responsePayload = {
-                              ok: true, action, syncId, strategy,
-                              syncMs: Date.now() - syncStart,
-                              data: normalized,
-                              total: normalized.length,
-                              summary: {
-                                            occupied: normalized.filter(b => b.checked_in).length,
-                                            pending_checkout: normalized.filter(b => b.status === 'reserved').length,
-                                            synced_at: new Date().toISOString(),
-                              }
-                  };
-                  break;
-        }
-
-        case 'bookings': {
-                  const dateFrom = url.searchParams.get('from') || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const dateTo = url.searchParams.get('to') || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const { data, strategy } = await fetchBookingsDual(dateFrom, dateTo);
-                  const normalized = data.map(b => normalizeBooking(b, today));
-                  responsePayload = { ok: true, action, syncId, strategy, data: normalized, total: normalized.length };
-                  break;
-        }
-
-        case 'checkin_today': {
-                  const { data, strategy } = await fetchBookingsDual(today, today);
-                  const filtered = data.filter(b => (b.start_date || b.checkin_date) === today);
-                  const normalized = filtered.map(b => normalizeBooking(b, today));
-                  responsePayload = { ok: true, action, syncId, strategy, data: normalized, total: normalized.length };
-                  break;
-        }
-
-        case 'checkout_today': {
-                  let coData = [], coStrategy = '';
-                  try {
-                              const r = await lobbyFetch('/bookings?checkout_from=' + today + '&checkout_to=' + today);
-                              coData = r.data || r || [];
-                              coStrategy = 'checkout_from';
-                  } catch(e) {
-                              log('warn', 'checkout_today: checkout_from fallo, usando dual', e.message);
-                              const from60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                              const { data: d2, strategy: s2 } = await fetchBookingsDual(from60, today);
-                              coData = d2.filter(b => (b.end_date || b.checkout_date) === today);
-                              coStrategy = s2 + '_filtered';
-                  }
-                  const normalized = coData.map(b => normalizeBooking(b, today));
-                  responsePayload = { ok: true, action, syncId, strategy: coStrategy, data: normalized, total: normalized.length };
-                  break;
-        }
-
-        case 'calendar': {
-                  const calFrom = url.searchParams.get('from') || new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const calTo = url.searchParams.get('to') || new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                  const { data: d1, strategy: s1 } = await fetchBookingsDual(calFrom, calTo);
-
-                  let d2 = [];
-                  try {
-                              const longFrom = new Date(new Date(calFrom).getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                              const r2 = await fetchBookingsDual(longFrom, calFrom);
-                              d2 = r2.data.filter(b => {
-                                            const co = b.end_date || b.checkout_date || '';
-                                            return co >= calFrom && b.checked_out !== true;
-                              });
-                  } catch(e) { log('warn', 'calendar: no se cargaron estancias largas', e.message); }
-
-                  const seen = new Set();
-                  const all = [...d1, ...d2].filter(b => {
-                              if (seen.has(b.booking_id || b.id)) return false;
-                              seen.add(b.booking_id || b.id);
-                              return true;
-                  });
-
-                  const normalized = all.map(b => normalizeForBilling(b, today));
-                  responsePayload = { ok: true, action, syncId, strategy: s1, data: normalized, total: normalized.length };
-                  break;
-        }
-
-        case 'raw_rooms': {
-                  const data = await lobbyFetch('/rooms');
-                  responsePayload = { ok: true, action, syncId, data };
-                  break;
-        }
-
-        case 'raw_bookings': {
-                  const { data, strategy } = await fetchBookingsDual(today, new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-                  responsePayload = { ok: true, action, syncId, strategy, data, total: data.length };
-                  break;
-        }
-
-        case 'test': {
-                  const results = {};
-                  try {
-                              const r = await lobbyFetch('/rooms');
-                              results['/rooms'] = { ok: true, sample: JSON.stringify(r).slice(0, 200) };
-                  } catch(e) { results['/rooms'] = { ok: false, error: e.message }; }
-
-                  try {
-                              const dateFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                              const dateTo = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                              const { data, strategy } = await fetchBookingsDual(dateFrom, dateTo);
-                              results['/bookings'] = { ok: true, strategy, count: data.length, sample: JSON.stringify(data[0] || {}).slice(0, 200) };
-                  } catch(e) { results['/bookings'] = { ok: false, error: e.message }; }
-
-                  responsePayload = { ok: true, action: 'test', syncId, version: '3.1', auth_mode: LOBBY_TOKEN ? 'bearer' : 'basic', token_ok: !!(LOBBY_TOKEN || LOBBY_PASS), results };
-                  break;
-        }
-
-        default: {
-                  res.writeHead(400, CORS_HEADERS);
-                  res.end(JSON.stringify({ ok: false, error: 'Accion desconocida: ' + action }));
-                  return;
-        }
+  if (action === 'inhouse' || action === 'rooms') {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let result = await fetchLobby(`/bookings?checkin_from=${today}&checkin_to=${today}&status=inhouse`);
+      if (!result.body || result.status !== 200 || result.body.error) {
+        result = await fetchLobby(`/bookings?creation_date_from=${today}&status=inhouse`);
       }
+      const bookings = Array.isArray(result.body) ? result.body : (result.body?.data || result.body?.bookings || []);
+      const rooms = bookings.map(b => ({
+        room: b.room?.name || b.room_number || b.room || 'Sin número',
+        guest: b.guest?.name || b.guest_name || 'Sin nombre',
+        checkin: b.checkin || b.check_in || b.arrival_date || '',
+        checkout: b.checkout || b.check_out || b.departure_date || '',
+        status: b.status || 'inhouse',
+        notes: b.notes || b.observations || '',
+        booking_id: b.booking_id || b.id || ''
+      }));
+      res.writeHead(200, CORS_HEADERS);
+      return res.end(JSON.stringify({ ok: true, data: rooms, count: rooms.length, total_bookings: bookings.length }));
+    } catch(e) {
+      log('error', 'inhouse error', e.message);
+      res.writeHead(500, CORS_HEADERS);
+      return res.end(JSON.stringify({ error: e.message }));
+    }
+  }
 
-      log('info', 'response sent', { action, syncId, ms: Date.now() - syncStart });
-                                         res.writeHead(200, CORS_HEADERS);
-                                         res.end(JSON.stringify(responsePayload));
+  if (action === 'facturacion' || action === 'billing') {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+      let result = await fetchLobby(`/bookings?checkin_from=${thirtyDaysAgo}&checkin_to=${today}`);
+      if (!result.body || result.status !== 200 || result.body.error) {
+        result = await fetchLobby(`/bookings?creation_date_from=${thirtyDaysAgo}`);
+      }
+      const bookings = Array.isArray(result.body) ? result.body : (result.body?.data || result.body?.bookings || []);
+      const billing = bookings.map(normalizeForBilling);
+      res.writeHead(200, CORS_HEADERS);
+      return res.end(JSON.stringify({ ok: true, data: billing, count: billing.length }));
+    } catch(e) {
+      log('error', 'facturacion error', e.message);
+      res.writeHead(500, CORS_HEADERS);
+      return res.end(JSON.stringify({ error: e.message }));
+    }
+  }
 
-                                   } catch (err) {
-                                         log('error', 'server error', { action, syncId, error: err.message });
-                                         res.writeHead(500, CORS_HEADERS);
-                                         res.end(JSON.stringify({
-                                                 ok: false, error: err.message, action, syncId,
-                                                 hint: 'Verifica LOBBY_TOKEN o LOBBY_PASS en Render. URL API: ' + LOBBY_BASE,
-                                         }));
-                                   }
+  res.writeHead(400, CORS_HEADERS);
+  res.end(JSON.stringify({ error: 'Unknown action', action, validActions: ['inhouse', 'facturacion', 'html', 'health'] }));
 });
 
-server.listen(PORT, () => {
-    log('info', 'B79 LobbyPMS Proxy v3.1 iniciado', { port: PORT, auth_mode: LOBBY_TOKEN ? 'bearer' : 'basic' });
-});
-
-// v3.1 - Basic Auth + Facturacion endpoint
+server.listen(PORT, () => log('info', `B79 Proxy v3.2 running on port ${PORT}`));
