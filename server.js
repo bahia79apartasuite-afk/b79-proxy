@@ -257,6 +257,26 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ error: 'Unauthorized', message: 'Missing or invalid X-B79-Token header' }));
   }
 
+  // ===== DEBUG ENDPOINT =====
+  if (action === 'debug') {
+    if (!verifyToken(req)) {
+      res.writeHead(401, CORS_HEADERS);
+      return res.end(JSON.stringify({ error: 'Unauthorized', message: 'Missing or invalid X-B79-Token' }));
+    }
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const testUrl = LOBBY_BASE + '/bookings?limit=5';
+      const authHeader = getAuthHeader();
+      const result = await fetchLobby('/bookings?limit=5');
+      res.writeHead(200, CORS_HEADERS);
+      return res.end(JSON.stringify({ ok: true, auth_header_type: authHeader.split(' ')[0], url: testUrl, result_status: result.status, result_body_preview: (result.body||'').substring(0,500) }));
+    } catch(e) {
+      res.writeHead(500, CORS_HEADERS);
+      return res.end(JSON.stringify({ error: e.message, stack: e.stack?.substring(0,200) }));
+    }
+  }
+  // ===== END DEBUG ENDPOINT =====
+
   if (action === 'inhouse' || action === 'rooms') {
     try {
       const today = new Date().toISOString().split('T')[0];
