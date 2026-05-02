@@ -29,15 +29,14 @@ function log(level, msg, extra) {
 }
 
 function getAuthHeader() {
-  if (LOBBY_TOKEN) return 'Bearer ' + LOBBY_TOKEN;
+  // Prefer Basic Auth with user/pass over Bearer token
   if (LOBBY_USER && LOBBY_PASS) {
     const cred = Buffer.from(LOBBY_USER + ':' + LOBBY_PASS).toString('base64');
     return 'Basic ' + cred;
   }
+  if (LOBBY_TOKEN) return 'Bearer ' + LOBBY_TOKEN;
   return '';
 }
-
-function verifyToken(req) {
   const auth = req.headers['authorization'] || '';
   const xtoken = req.headers['x-b79-token'] || '';
   if (auth === 'Bearer b79secure2024') return true;
