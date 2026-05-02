@@ -118,7 +118,7 @@ const LOBBY_SYNC_JS = `
 const PROXY_BASE_FACT = 'https://b79-proxy.onrender.com';
 async function sincronizarLobbyFact() {
   const statusEl = document.getElementById('lobby-sync-status');
-  const demoBanner = document.getElementById('demo-banner');
+  const demoBanner = document.querySelector('.demo-banner, #demo-banner, [class*=\'demo\'], [id*=\'demo\']');
   if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS…';statusEl.style.color='#1565C0';}
   try {
     const res = await fetch(PROXY_BASE_FACT+'/?action=facturacion',{headers:{'X-B79-Token':'b79secure2024'}});
@@ -147,7 +147,7 @@ async function sincronizarLobbyFact() {
     localStorage.setItem('b79_reservas', JSON.stringify(nuevasReservas));
     // Hide demo banner
     if(demoBanner) demoBanner.style.display='none';
-    const modoBtn = document.querySelector('.modo-demo-btn, [class*="modo"]');
+    const modoBtns = document.querySelectorAll('.demo-banner, .modo-demo-btn, [class*="demo"], .tag-demo, button[onclick*="reset"]');modoBtns.forEach(b=>b.style.display='none');
     if(modoBtn) modoBtn.style.display='none';
     // Update status
     if(statusEl){statusEl.textContent=nuevasReservas.length+' reservas de Lobby PMS ✔';statusEl.style.color='#2E7D32';}
