@@ -6,6 +6,7 @@ const LOBBY_PASS = process.env.LOBBY_PASS || 'LobbyPMS$84*!';
 const LOBBY_TOKEN = process.env.LOBBY_TOKEN;
 const PORT = process.env.PORT || 3000;
 const LOBBY_BASE = 'https://app.lobbypms.com/api/v1';
+const LOBBY_PROPERTY_ID = process.env.LOBBY_PROPERTY_ID || '14965';
 const NETLIFY_BASE = 'https://b79systemcleaning.netlify.app';
 
 const CORS_HEADERS = {
@@ -267,7 +268,7 @@ const server = http.createServer(async (req, res) => {
       const today = new Date().toISOString().split('T')[0];
       const testUrl = LOBBY_BASE + '/bookings?limit=5';
       const authHeader = getAuthHeader();
-      const result = await fetchLobby('/bookings?limit=5');
+      const result = await fetchLobby(`/properties/${LOBBY_PROPERTY_ID}/bookings?limit=5');
       res.writeHead(200, CORS_HEADERS);
       return res.end(JSON.stringify({ ok: true, auth_header_type: authHeader.split(' ')[0], url: testUrl, result_status: result.status, result_body_preview: (result.body||'').substring(0,500) }));
     } catch(e) {
@@ -280,9 +281,9 @@ const server = http.createServer(async (req, res) => {
   if (action === 'inhouse' || action === 'rooms') {
     try {
       const today = new Date().toISOString().split('T')[0];
-      let result = await fetchLobby(`/bookings?checkin_from=${today}&checkin_to=${today}&status=inhouse`);
+      let result = await fetchLobby(`/properties/${LOBBY_PROPERTY_ID}/bookings?checkin_from=${today}&checkin_to=${today}&status=inhouse`);
       if (!result.body || result.status !== 200 || result.body.error) {
-        result = await fetchLobby(`/bookings?creation_date_from=${today}&status=inhouse`);
+        result = await fetchLobby(`/properties/${LOBBY_PROPERTY_ID}/bookings?creation_date_from=${today}&status=inhouse`);
       }
       const bookings = Array.isArray(result.body) ? result.body : (result.body?.data || result.body?.bookings || []);
       const rooms = bookings.map(b => ({
@@ -307,9 +308,9 @@ const server = http.createServer(async (req, res) => {
     try {
       const today = new Date().toISOString().split('T')[0];
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-      let result = await fetchLobby(`/bookings?checkin_from=${thirtyDaysAgo}&checkin_to=${today}`);
+      let result = await fetchLobby(`/properties/${LOBBY_PROPERTY_ID}/bookings?checkin_from=${thirtyDaysAgo}&checkin_to=${today}`);
       if (!result.body || result.status !== 200 || result.body.error) {
-        result = await fetchLobby(`/bookings?creation_date_from=${thirtyDaysAgo}`);
+        result = await fetchLobby(`/properties/${LOBBY_PROPERTY_ID}/bookings?creation_date_from=${thirtyDaysAgo}`);
       }
       const bookings = Array.isArray(result.body) ? result.body : (result.body?.data || result.body?.bookings || []);
       const billing = bookings.map(normalizeForBilling);
