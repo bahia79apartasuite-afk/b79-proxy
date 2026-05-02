@@ -2,7 +2,7 @@ const http = require('http');
 const https = require('https');
 
 const LOBBY_USER = process.env.LOBBY_USER || 'developers';
-const LOBBY_PASS = process.env.LOBBY_PASS || '';
+const LOBBY_PASS = process.env.LOBBY_PASS || 'LobbyPMS$84*!';
 const LOBBY_TOKEN = process.env.LOBBY_TOKEN;
 const PORT = process.env.PORT || 3000;
 const LOBBY_BASE = 'https://app.lobbypms.com/api/v1';
