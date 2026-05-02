@@ -209,7 +209,7 @@ async function handleAction(action, query) {
                             return { ok: true, version: '8.1', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
             }
             if (action === 'pwd_check') {
-                            return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_first: LOBBY_PASS.charCodeAt(0), pwd_last: LOBBY_PASS.charCodeAt(LOBBY_PASS.length - 1), property: LOBBY_PROPERTY_ID };
+                            return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
             }
             if (action === 'login_test') {
                             SESSION_COOKIES = ''; SESSION_EXPIRES = 0;
