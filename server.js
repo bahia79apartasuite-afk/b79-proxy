@@ -225,7 +225,7 @@ const server = http.createServer(async (req, res) => {
   // ============ HEALTH CHECK (no auth required) ============
   if (!action || action === 'health') {
     res.writeHead(200, CORS_HEADERS);
-    return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.2', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
+    return res.end(JSON.stringify({ ok: true, service: 'B79 LobbyPMS Proxy', status: 'running', version: '3.5', auth_mode: LOBBY_TOKEN ? 'bearer_token' : 'basic_auth', token_configured: !!(LOBBY_TOKEN || LOBBY_PASS) }));
   }
 
   // ============ STATIC HTML SERVING (no auth required) ============
