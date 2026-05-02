@@ -37,6 +37,7 @@ function getAuthHeader() {
   if (LOBBY_TOKEN) return 'Bearer ' + LOBBY_TOKEN;
   return '';
 }
+function checkAuth(req) {
   const auth = req.headers['authorization'] || '';
   const xtoken = req.headers['x-b79-token'] || '';
   if (auth === 'Bearer b79secure2024') return true;
