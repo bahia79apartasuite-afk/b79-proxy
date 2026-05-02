@@ -114,35 +114,53 @@ const SYNC_UI = `<div id="lobby-sync-bar" style="background:#E3F2FD;border-botto
 </div>`;
 
 const LOBBY_SYNC_JS = `
-// ============ LOBBY PMS INTEGRATION v2 ============
+// ============ LOBBY PMS INTEGRATION v3 ============
 const PROXY_BASE_FACT = 'https://b79-proxy.onrender.com';
 async function sincronizarLobbyFact() {
   const statusEl = document.getElementById('lobby-sync-status');
-  if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS\u2026';statusEl.style.color='#1565C0';}
+  const demoBanner = document.getElementById('demo-banner');
+  if(statusEl){statusEl.textContent='Sincronizando con Lobby PMS…';statusEl.style.color='#1565C0';}
   try {
     const res = await fetch(PROXY_BASE_FACT+'/?action=facturacion',{headers:{'X-B79-Token':'b79secure2024'}});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const data = await res.json();
     if(data.error)throw new Error(data.error);
-    const reservas = data.data||[];
-    window._lobbyReservas = reservas;
-    if(statusEl){statusEl.textContent=reservas.length+' reservas de Lobby PMS';statusEl.style.color='#2E7D32';}
-    const tb = document.querySelector('#reservas-table tbody,#facturas-body,.reservas-body');
-    if(tb){
-      tb.innerHTML='';
-      reservas.slice(0,50).forEach(r=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML='<td>'+(r.id||'')+'</td><td>'+(r.guest||'')+'</td><td>'+(r.room||'')+'</td><td>'+(r.checkin||'')+'</td><td>'+(r.checkout||'')+'</td><td>'+(r.nights||0)+'</td><td>$'+((r.subtotal||0).toLocaleString())+'</td><td>'+(r.status||'')+'</td>';
-        tb.appendChild(tr);
-      });
-    }
+    const lobbyData = data.data||[];
+    if(lobbyData.length===0){if(statusEl){statusEl.textContent='Sin reservas activas en Lobby PMS';statusEl.style.color='#E65100';}return;}
+    // Map LobbyPMS data to the app's reservas format
+    const nuevasReservas = lobbyData.map(r=>({
+      id: r.id||r.booking_id||('R'+Math.random().toString(36).substr(2,4).toUpperCase()),
+      habitacion: String(r.room||r.room_number||'').replace(/[^0-9]/g,''),
+      cliente: (r.guest||r.guest_name||r.client||'Sin nombre').toUpperCase(),
+      cedula: r.document||r.cedula||r.passport||r.id_number||'N/D',
+      tipo: (r.company||r.empresa) ? 'empresa' : 'persona',
+      inicio: r.checkin||r.check_in||r.arrival_date||new Date().toISOString().split('T')[0],
+      fin: r.checkout||r.check_out||r.departure_date||new Date().toISOString().split('T')[0],
+      valor: Number(r.subtotal||r.total||r.rate||r.amount||0),
+      estado: r.status||'confirmada',
+      email: r.email||r.guest_email||'',
+      telefono: r.phone||r.telefono||r.telephone||''
+    }));
+    // Update the global reservas variable used by render()
+    window.reservas = nuevasReservas;
+    if(typeof reservas !== 'undefined') reservas = nuevasReservas;
+    localStorage.setItem('b79_reservas', JSON.stringify(nuevasReservas));
+    // Hide demo banner
+    if(demoBanner) demoBanner.style.display='none';
+    const modoBtn = document.querySelector('.modo-demo-btn, [class*="modo"]');
+    if(modoBtn) modoBtn.style.display='none';
+    // Update status
+    if(statusEl){statusEl.textContent=nuevasReservas.length+' reservas de Lobby PMS ✔';statusEl.style.color='#2E7D32';}
+    // Re-render the UI
+    if(typeof render === 'function') render();
+    if(typeof setTab === 'function') setTab(window.tab||'calendario');
   }catch(e){
     if(statusEl){statusEl.textContent='Error: '+e.message;statusEl.style.color='#C62828';}
-    console.error('LobbyPMS:',e);
+    console.error('LobbyPMS Fact:',e);
   }
 }
 document.addEventListener('DOMContentLoaded',()=>setTimeout(sincronizarLobbyFact,1500));
-// ============ END LOBBY PMS INTEGRATION ============`;
+// ============ END LOBBY PMS INTEGRATION ============`
 
 function modifyGenericHTML(html, isFacturacion) {
   html = html.replace('</head>', PORTAL_CSS + '\n</head>');
