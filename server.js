@@ -211,7 +211,7 @@ async function handleAction(action, query) {
             if (action === 'pwd_check') {
                             return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
             }
-            if (action === 'login_test') {
+            if (action === 'inspect_auth') { const r = await rawRequest({ host: LOBBY_HOST, port: 443, method: 'GET', path: '/public/js/builds/auth/auth.js', headers: { ...COMMON_HEADERS(), 'Accept': '*/*' } }); const t = r.body; const idx = t.indexOf('validarDatos'); return { ok: true, len: t.length, snippet: idx>-1 ? t.substring(idx-700, idx+500) : 'not found' }; } if (action === 'login_test') {
                             SESSION_COOKIES = ''; SESSION_EXPIRES = 0;
                             const r = await loginLobby();
                             return { ok: r.ok, has_cookies: !!SESSION_COOKIES, detail: r };
