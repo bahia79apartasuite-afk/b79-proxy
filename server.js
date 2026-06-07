@@ -113,7 +113,7 @@ async function loginLobby() {
             LAST_LOGIN_DETAIL.steps.push({ step: 'getPropertyUsers', status: r2.statusCode, users_count: users.length });
             const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const target = norm(LOBBY_USER_NAME);
-            const user = users.find(u => norm(u.nombre_completo) === target) || users[0];
+            const user = users.find(u => norm(u.nombre_completo).includes('bahia 79')) || users.find(u => norm(u.nombre_completo) === target);
             if (!user || !user.hashId) return { ok: false, step: 'no_user_match', users_count: users.length };
 
     // Step 3: validarDatos
