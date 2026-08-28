@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(node --check:*)",
+      "Bash(node -e:*)",
+      "Bash(curl -s https://b79-proxy.onrender.com/*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)"
+    ],
+    "deny": [
+      "Bash(curl * pwd_check*)"
+    ]
+  }
+}
