@@ -1,0 +1,2079 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sistema para hacer videos de IA de calidad cinematografica</title>
+<meta name="description" content="Guia paso a paso para producir videos de animacion
+pintada con IA, sacada de diseccionar dos referentes plano a plano.">
+<style>
+:root{
+  --fondo:#0c0d10; --panel:#14161b; --panel2:#1b1e25; --borde:#272b34;
+  --texto:#e8e6e1; --suave:#9aa0ab; --tenue:#6d737e;
+  --ambar:#F2BB34; --rojo:#E03D26; --verde:#7FB069; --azul:#5B9BD5;
+  --radio:12px; --ancho:900px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--fondo); color:var(--texto);
+  font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  overflow-x:hidden;
+}
+a{color:var(--ambar)}
+code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
+:where(h1,h2,h3,h4){line-height:1.25;margin:0 0 .5em}
+h1{font-size:1.6rem;letter-spacing:-.02em}
+h2{font-size:1.25rem;letter-spacing:-.01em}
+h3{font-size:1.02rem}
+p{margin:0 0 1em}
+hr{border:0;border-top:1px solid var(--borde);margin:2rem 0}
+
+/* ---------------------------------------------------------------- cabecera */
+.top{position:sticky;top:0;z-index:50;background:rgba(12,13,16,.94);
+     backdrop-filter:blur(8px);border-bottom:1px solid var(--borde)}
+.top .fila{max-width:var(--ancho);margin:0 auto;padding:.7rem 1rem .1rem}
+.marca{font-weight:700;font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--tenue)}
+.marca b{color:var(--ambar);font-weight:700}
+nav.tabs{display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:none;
+         padding:.5rem 1rem 0;max-width:var(--ancho);margin:0 auto}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{
+  flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;
+  color:var(--suave);font:inherit;font-size:.88rem;font-weight:600;
+  padding:.55rem .7rem;cursor:pointer;white-space:nowrap;
+}
+nav.tabs button:hover{color:var(--texto)}
+nav.tabs button[aria-selected="true"]{color:var(--ambar);border-bottom-color:var(--ambar)}
+
+main{max-width:var(--ancho);margin:0 auto;padding:1.4rem 1rem 5rem}
+section[hidden]{display:none!important}
+
+/* ---------------------------------------------------------------- bloques */
+.intro{color:var(--suave);font-size:1.02rem}
+.tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:var(--radio);
+         padding:1rem;margin:0 0 1rem}
+.tarjeta h3{margin-top:0}
+.rejilla{display:grid;gap:.8rem;grid-template-columns:1fr}
+@media(min-width:640px){.rejilla.dos{grid-template-columns:1fr 1fr}
+                        .rejilla.tres{grid-template-columns:repeat(3,1fr)}}
+.aviso{border-left:3px solid var(--ambar);background:var(--panel2);padding:.8rem 1rem;
+       border-radius:0 var(--radio) var(--radio) 0;margin:0 0 1rem}
+.aviso.rojo{border-left-color:var(--rojo)}
+.aviso.verde{border-left-color:var(--verde)}
+.aviso p:last-child{margin-bottom:0}
+.dato{font-size:1.9rem;font-weight:700;color:var(--ambar);line-height:1;display:block}
+.dato + span{color:var(--suave);font-size:.85rem}
+
+/* ---------------------------------------------------------------- tablas */
+.tabla{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 1rem;
+       border:1px solid var(--borde);border-radius:var(--radio)}
+table{border-collapse:collapse;width:100%;font-size:.86rem;min-width:420px}
+th,td{text-align:left;padding:.5rem .65rem;border-bottom:1px solid var(--borde);
+      vertical-align:top}
+th{color:var(--tenue);font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;
+   font-weight:700;background:var(--panel2)}
+tr:last-child td{border-bottom:0}
+
+/* ---------------------------------------------------------------- paleta */
+.paleta{display:flex;flex-wrap:wrap;gap:.35rem;margin:.5rem 0 1rem}
+.swatch{width:54px;border-radius:8px;overflow:hidden;border:1px solid var(--borde);
+        font-size:.62rem;text-align:center}
+.swatch i{display:block;height:34px}
+.swatch span{display:block;padding:.2rem 0;color:var(--suave);
+             font-family:ui-monospace,monospace}
+
+/* ---------------------------------------------------------------- planos */
+.planos{display:grid;gap:.9rem;grid-template-columns:1fr}
+@media(min-width:560px){.planos{grid-template-columns:1fr 1fr}}
+@media(min-width:820px){.planos{grid-template-columns:1fr 1fr 1fr}}
+.plano{background:var(--panel);border:1px solid var(--borde);border-radius:var(--radio);
+       overflow:hidden;display:flex;flex-direction:column}
+.plano img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+.plano .cuerpo{padding:.6rem .7rem .75rem;flex:1}
+.plano .n{font-weight:700;color:var(--ambar);font-family:ui-monospace,monospace}
+.plano .meta{color:var(--tenue);font-size:.72rem;text-transform:uppercase;
+             letter-spacing:.05em;margin:.15rem 0 .4rem}
+.plano .acc{font-size:.84rem;margin:0 0 .4rem}
+.plano .fun{font-size:.8rem;color:var(--suave);margin:0;border-top:1px dashed var(--borde);
+            padding-top:.4rem}
+.etq{display:inline-block;font-size:.66rem;font-weight:700;text-transform:uppercase;
+     letter-spacing:.05em;padding:.1rem .4rem;border-radius:5px;margin-right:.3rem}
+.etq.macro{background:#3a2c10;color:#F2BB34}
+.etq.busto{background:#132a3d;color:#7FC4F5}
+.etq.amplio{background:#14301f;color:#8FD9A8}
+.etq.POV{background:#2b1636;color:#D69CF0}
+.etq.impacto{background:#3a1512;color:#F58273}
+.etq.titulo{background:#2e2e33;color:#d8d8de}
+.filtros{display:flex;flex-wrap:wrap;gap:.3rem;margin:0 0 1rem}
+.filtros button{background:var(--panel2);border:1px solid var(--borde);color:var(--suave);
+  font:inherit;font-size:.78rem;font-weight:600;padding:.3rem .6rem;border-radius:999px;
+  cursor:pointer}
+.filtros button[aria-pressed="true"]{background:var(--ambar);color:#17150c;
+  border-color:var(--ambar)}
+
+/* ---------------------------------------------------------------- acordeon */
+.paso{background:var(--panel);border:1px solid var(--borde);border-radius:var(--radio);
+      margin:0 0 .7rem;overflow:hidden}
+.paso > .cab{display:flex;align-items:flex-start;gap:.7rem;padding:.85rem 1rem;
+             cursor:pointer;user-select:none;background:none;border:0;width:100%;
+             text-align:left;color:inherit;font:inherit}
+.paso > .cab:hover{background:var(--panel2)}
+.paso .orden{flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--borde);color:var(--suave);
+  display:grid;place-items:center;font-size:.78rem;font-weight:700;
+  font-family:ui-monospace,monospace}
+.paso.hecho .orden{background:var(--verde);border-color:var(--verde);color:#0b1a0e}
+.paso .titulo{flex:1}
+.paso .titulo b{display:block;font-size:.98rem}
+.paso .titulo small{color:var(--tenue);font-size:.78rem}
+.paso .flecha{flex:0 0 auto;color:var(--tenue);transition:transform .15s}
+.paso[open] .flecha,.paso.abierto .flecha{transform:rotate(90deg)}
+.paso .contenido{padding:0 1rem 1rem;border-top:1px solid var(--borde);margin-top:0}
+.paso .contenido > :first-child{margin-top:1rem}
+.donde{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;background:var(--panel2);border:1px solid var(--borde);
+  color:var(--suave);padding:.15rem .5rem;border-radius:6px;margin:0 .3rem .5rem 0}
+label.check{display:flex;gap:.5rem;align-items:center;background:var(--panel2);
+  border:1px solid var(--borde);border-radius:8px;padding:.5rem .7rem;margin:1rem 0 0;
+  cursor:pointer;font-size:.86rem;font-weight:600}
+label.check input{width:17px;height:17px;accent-color:var(--verde);flex:0 0 auto}
+
+/* ---------------------------------------------------------------- prompts */
+.prompt{position:relative;margin:0 0 1rem}
+.prompt pre{background:#08090b;border:1px solid var(--borde);border-radius:var(--radio);
+  padding:.85rem 1rem;overflow-x:auto;margin:0;font-size:.79rem;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;color:#cfd3da}
+.prompt .copiar{position:absolute;top:.45rem;right:.45rem;background:var(--panel2);
+  border:1px solid var(--borde);color:var(--suave);font:inherit;font-size:.72rem;
+  font-weight:700;padding:.25rem .55rem;border-radius:6px;cursor:pointer}
+.prompt .copiar:hover{color:var(--texto);border-color:var(--suave)}
+.prompt .copiar.ok{background:var(--verde);border-color:var(--verde);color:#0b1a0e}
+.prompt .rotulo{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--tenue);font-weight:700;margin:0 0 .3rem}
+
+/* ---------------------------------------------------------------- checklist */
+ul.revisar{list-style:none;padding:0;margin:.4rem 0 1rem}
+ul.revisar li{position:relative;padding-left:1.5rem;margin:0 0 .4rem;font-size:.88rem}
+ul.revisar li::before{content:"";position:absolute;left:0;top:.42em;width:12px;height:12px;
+  border:1.5px solid var(--tenue);border-radius:3px}
+
+/* ---------------------------------------------------------------- formulario */
+.form{display:grid;gap:.7rem;grid-template-columns:1fr}
+@media(min-width:640px){.form{grid-template-columns:1fr 1fr}
+                        .form .ancho{grid-column:1/-1}}
+.campo label{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--tenue);font-weight:700;margin:0 0 .25rem}
+.campo input,.campo textarea,.campo select{
+  width:100%;background:#08090b;border:1px solid var(--borde);border-radius:8px;
+  color:var(--texto);font:inherit;font-size:.88rem;padding:.5rem .65rem;resize:vertical}
+.campo input:focus,.campo textarea:focus,.campo select:focus{
+  outline:2px solid var(--ambar);outline-offset:-1px;border-color:var(--ambar)}
+.campo small{display:block;color:var(--tenue);font-size:.74rem;margin-top:.2rem}
+
+/* ---------------------------------------------------------------- svg mapa */
+.mapa{background:var(--panel);border:1px solid var(--borde);border-radius:var(--radio);
+      padding:.8rem;margin:0 0 1rem;overflow-x:auto}
+.mapa svg{display:block;width:100%;min-width:520px;height:auto}
+
+/* ---------------------------------------------------------------- pie */
+footer{border-top:1px solid var(--borde);margin-top:3rem;padding:1.5rem 1rem 3rem;
+  color:var(--tenue);font-size:.8rem;text-align:center}
+.barra{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(12,13,16,.96);
+  border-top:1px solid var(--borde);padding:.5rem 1rem;display:flex;align-items:center;
+  gap:.7rem;font-size:.78rem;color:var(--suave)}
+.barra .pista{flex:1;height:5px;background:var(--panel2);border-radius:99px;overflow:hidden}
+.barra .relleno{height:100%;width:0;background:var(--verde);transition:width .25s}
+.barra button{background:none;border:1px solid var(--borde);color:var(--tenue);font:inherit;
+  font-size:.72rem;padding:.2rem .5rem;border-radius:6px;cursor:pointer}
+@media(min-width:640px){main{padding-bottom:4rem}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="fila"><div class="marca">Sistema de video con <b>IA</b></div></div>
+  <nav class="tabs" aria-label="Secciones"><button data-vista="inicio" aria-selected="true">Inicio</button><button data-vista="anatomia" aria-selected="false">Anatomia</button><button data-vista="sistema" aria-selected="false">El sistema</button><button data-vista="replicar" aria-selected="false">Mi personaje</button><button data-vista="errores" aria-selected="false">Errores</button><button data-vista="automatico" aria-selected="false">Modo automatico</button><button data-vista="glosario" aria-selected="false">Glosario</button></nav>
+</header>
+<main>
+
+<section id="inicio">
+  <h1>Hacer un video de IA que no parezca un video de IA</h1>
+  <p class="intro">Esta guia sale de diseccionar dos videos reales, plano a plano, con
+  <code>ffmpeg</code>. No es teoria: los tiempos, las paletas y el ritmo que vas a leer estan
+  medidos sobre los archivos. Si sigues el orden, sale. Si te lo saltas, no.</p>
+
+  <div class="rejilla tres">
+    <div class="tarjeta"><span class="dato">28</span>
+      <span>planos en 39 s de <code>on_the_road</code>, uno cada 1.39 s</span></div>
+    <div class="tarjeta"><span class="dato">53</span>
+      <span>planos en 76 s de <code>black_sand</code>, el mas corto de 1 frame</span></div>
+    <div class="tarjeta"><span class="dato">31 %</span>
+      <span>del metraje son insertos macro de objetos. Ahi esta el truco</span></div>
+  </div>
+
+  <h2>Que es este estilo</h2>
+  <p>Animacion pintada. Se reconoce por cinco cosas concretas, y las cinco se pueden pedir:</p>
+  <ul>
+    <li><b>Pincelada a la vista.</b> El fondo se resuelve en manchas grandes que no se funden
+      entre si. La cara, en cambio, va modelada. Ese desequilibrio es lo que hace que el
+      personaje salte del plano.</li>
+    <li><b>Linea solo donde hace falta.</b> Contorno grueso en ceja, parpado y nariz; el resto
+      se separa por contraste de valor. Si pides <i>bold outlines</i> a secas, te lo pone en
+      todo y pierdes el look.</li>
+    <li><b>Una sola fuente de luz, dura y de color.</b> Sombras sin relleno. En
+      <code>black_sand</code> no hay una sola luz blanca en 76 segundos.</li>
+    <li><b>Paleta corta.</b> Ocho colores para un video entero.</li>
+    <li><b>Corte rapido y desigual.</b> No es que vaya rapido: es que <b>alterna</b> planos de
+      4 segundos con rafagas de cuatro planos en 0,3 segundos.</li>
+  </ul>
+
+  <h2>El mapa</h2>
+  <p>Este es el orden y no es negociable. Cada paso da por hecho que el anterior esta
+  <b>aprobado</b>, no solo hecho.</p>
+  <div class="mapa">
+<svg viewBox="0 0 760 210" role="img"
+     aria-label="Mapa del pipeline: guion, nombres, ubicaciones, personajes, props,
+     start frames, video y montaje, en ese orden">
+  <defs>
+    <marker id="fl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7"
+            orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4b515c"/></marker>
+    <style>
+      .caja{fill:#1b1e25;stroke:#2f3540;stroke-width:1;rx:8}
+      .t{fill:#e8e6e1;font:600 12px system-ui,sans-serif}
+      .s{fill:#7d848f;font:10px system-ui,sans-serif}
+      .n{fill:#6d737e;font:700 10px ui-monospace,monospace}
+      .lin{stroke:#4b515c;stroke-width:1.4;fill:none;marker-end:url(#fl)}
+      .mundo{stroke:#5B9BD5}.gente{stroke:#F2BB34}.frame{stroke:#7FB069}.fin{stroke:#E03D26}
+    </style>
+  </defs>
+
+  <text class="s" x="8" y="14">1 · IDEA</text>
+  <rect class="caja mundo" x="4" y="22" width="118" height="52"/>
+  <text class="n" x="14" y="40">01</text><text class="t" x="34" y="40">Guion</text>
+  <text class="s" x="14" y="56">3-4 frases</text>
+  <text class="s" x="14" y="68">y la shotlist</text>
+
+  <rect class="caja mundo" x="4" y="86" width="118" height="52"/>
+  <text class="n" x="14" y="104">02</text><text class="t" x="34" y="104">Nombres</text>
+  <text class="s" x="14" y="120">01_slug.png</text>
+  <text class="s" x="14" y="132">el orden manda</text>
+
+  <text class="s" x="166" y="14">2 · EL MUNDO</text>
+  <rect class="caja mundo" x="162" y="22" width="118" height="52"/>
+  <text class="n" x="172" y="40">03</text><text class="t" x="192" y="40">Ubicaciones</text>
+  <text class="s" x="172" y="56">amplio, medio,</text>
+  <text class="s" x="172" y="68">detalle + horas</text>
+
+  <text class="s" x="324" y="14">3 · LA GENTE</text>
+  <rect class="caja gente" x="320" y="22" width="118" height="52"/>
+  <text class="n" x="330" y="40">04</text><text class="t" x="350" y="40">Personajes</text>
+  <text class="s" x="330" y="56">6 planchas</text>
+  <text class="s" x="330" y="68">+ Element</text>
+
+  <rect class="caja gente" x="320" y="86" width="118" height="52"/>
+  <text class="n" x="330" y="104">05</text><text class="t" x="350" y="104">Props</text>
+  <text class="s" x="330" y="120">el heroe primero</text>
+  <text class="s" x="330" y="132">y los macros</text>
+
+  <text class="s" x="482" y="14">4 · LOS FRAMES</text>
+  <rect class="caja frame" x="478" y="22" width="118" height="52"/>
+  <text class="n" x="488" y="40">06</text><text class="t" x="508" y="40">Start frames</text>
+  <text class="s" x="488" y="56">uno por plano</text>
+  <text class="s" x="488" y="68">y aprobado</text>
+
+  <text class="s" x="640" y="14">5 · EL VIDEO</text>
+  <rect class="caja fin" x="636" y="22" width="118" height="52"/>
+  <text class="n" x="646" y="40">07</text><text class="t" x="666" y="40">Animar</text>
+  <text class="s" x="646" y="56">Seedance 2.0</text>
+  <text class="s" x="646" y="68">una toma continua</text>
+
+  <rect class="caja fin" x="636" y="86" width="118" height="52"/>
+  <text class="n" x="646" y="104">08</text><text class="t" x="666" y="104">Montaje</text>
+  <text class="s" x="646" y="120">ffmpeg o CapCut</text>
+  <text class="s" x="646" y="132">16:9 y 9:16</text>
+
+  <path class="lin" d="M122,48 L158,48"/>
+  <path class="lin" d="M63,74 L63,86"/>
+  <path class="lin" d="M280,48 L316,48"/>
+  <path class="lin" d="M379,74 L379,86"/>
+  <path class="lin" d="M438,48 L474,48"/>
+  <path class="lin" d="M438,112 C462,112 462,60 474,52"/>
+  <path class="lin" d="M596,48 L632,48"/>
+  <path class="lin" d="M695,74 L695,86"/>
+
+  <rect x="4" y="160" width="750" height="42" rx="8" fill="#14161b" stroke="#272b34"/>
+  <text class="t" x="18" y="180">Cada flecha es una aprobacion, no un paso.</text>
+  <text class="s" x="18" y="195">Si el anterior no esta aprobado, el siguiente hereda
+  el fallo multiplicado por el numero de planos.</text>
+</svg></div>
+  <div class="aviso">
+    <p><b>Primero el mundo, luego el personaje, luego los frames, luego el video.</b>
+    La razon es la luz: una ubicacion define hora del dia, direccion y temperatura de color.
+    Si generas al personaje antes, lo generas con una luz inventada y despues no encaja en
+    ningun sitio. Tendras planos correctos por separado que no cortan entre si.</p>
+  </div>
+
+  <h2>Que necesitas</h2>
+  <div class="tabla"><table><thead><tr><th>Para que</th><th>Herramienta</th><th>Alternativa</th><th>Nota</th></tr></thead><tbody><tr><td><b>Estilo y style frames</b></td><td><code>Midjourney</code></td><td><code>Seedream 5 · Nano Banana Pro</code></td><td>A mano: no tiene API y sus terminos prohiben automatizarlo</td></tr><tr><td><b>Imagenes y start frames</b></td><td><code>Nano Banana Pro</code></td><td><code>Seedream 5 Pro · Flux 2 Pro</code></td><td>Nano Banana Pro es el mejor de los tres con texto</td></tr><tr><td><b>Editar sin regenerar</b></td><td><code>GPT Image 2</code></td><td><code>Seedream 5 (is_inpaint)</code></td><td>Variantes de hora del dia, corregir un detalle</td></tr><tr><td><b>Consistencia de personaje</b></td><td><code>Elements de Higgsfield</code></td><td><code>--cref en Midjourney</code></td><td>Elements, no Soul: ver el paso 4</td></tr><tr><td><b>Animar</b></td><td><code>Seedance 2.0</code></td><td><code>Seedance 2.5 · Seedance 2.0 Mini</code></td><td>2.0 es el unico con 4K real; 2.5 llega a 30 s</td></tr><tr><td><b>Montar</b></td><td><code>ffmpeg (scripts/montage.sh)</code></td><td><code>CapCut · Premiere</code></td><td>El montaje no necesita IA</td></tr></tbody></table></div>
+
+  <h2>Cuanto cuesta</h2>
+  <p>Para un video de unos 40 segundos como <code>on_the_road</code>, con
+  <code>nano_banana_pro</code> a 2k para las imagenes y <code>seedance_2_0</code> a 720p para
+  el video:</p>
+  <div class="tabla"><table><thead><tr><th>Concepto</th><th>Cantidad</th><th>A la primera</th><th>Realista (2,5 intentos)</th></tr></thead><tbody><tr><td>Start frames (imagen)</td><td>28</td><td>1,68 USD</td><td>4,20 USD</td></tr><tr><td>Planos animados 4-6 s</td><td>28</td><td>8,21 USD</td><td>20,53 USD</td></tr><tr><td>Vinetas y negros</td><td>0 en este video</td><td>0,00 USD</td><td>0,00 USD</td></tr><tr><td><b>Total</b></td><td><b>39 s de video</b></td><td><b>9,89 USD</b></td><td><b>24,73 USD</b></td></tr></tbody></table></div>
+  <div class="aviso rojo">
+    <p><b>La columna que importa es la de la derecha.</b> Nadie aprueba un plano a la primera.
+    Dos o tres intentos por plano es lo normal, y en los bustos son mas. Presupuesta el doble
+    y medio de lo que suma la teoria.</p>
+    <p>Las tarifas cambian: comprueba las tuyas en el panel de tu proveedor. Lo que no cambia
+    es la proporcion: <b>animar cuesta unas cinco veces mas que generar la imagen</b>. Por eso
+    el sistema entero se organiza alrededor de no animar hasta estar seguro.</p>
+  </div>
+
+  <h2>Como se ahorra de verdad</h2>
+  <ul>
+    <li><b>Los planos de 5 frames o menos no se animan.</b> Son imagenes fijas. En
+      <code>black_sand</code> son 19 de 53 planos: gastar 4 segundos de video para usar
+      2 frames es tirar el dinero.</li>
+    <li><b>Prueba a 6 s y 720p antes de la version larga.</b> Un plano largo que sale mal
+      cuesta lo mismo que tres pruebas cortas.</li>
+    <li><b>Genera a 720p y sube a 1080p solo el pase final.</b> Seedance 2.5 renderiza nativo
+      a 720p: lo que llama 1080p es un reescalado, no detalle nuevo.</li>
+  </ul>
+</section>
+
+<section id="anatomia" hidden>
+  <h1>Anatomia de los dos referentes</h1>
+  <p class="intro">Cada tarjeta es un frame real del video, extraido con <code>ffmpeg</code>.
+  Debajo, que pasa en el plano y — lo que de verdad importa — <b>por que esta ahi</b>.
+  Filtra por tipo de plano para ver el patron.</p>
+  <div class="aviso">
+    <p>Fijate en una cosa mientras miras: <b>casi nunca hay dos planos seguidos del mismo
+    tipo</b>, salvo los macros, que van en pareja. Ese es el motor de todo. Un amplio detras
+    de otro amplio aburre; un macro detras de un macro construye un objeto.</p>
+  </div>
+  
+  <h2>on_the_road — 39 s, 28 planos</h2>
+  <p>Un hombre come en un diner del desierto, se sube a su coche y se va. No hay trama. Lo que sostiene el video es el <b>ritmo</b>: 2,62 s por plano en el primer acto, 1,46 en el segundo, 1,03 en el tercero. Acelera sin parar y no hay un solo tramo que vaya mas lento que el anterior. Esa curva <b>es</b> la estructura.</p>
+  <div class="tabla"><table><thead><tr><th>Duracion</th><th>Planos</th><th>Plano medio</th><th>Cortes / s</th><th>Mas corto</th><th>Mas largo</th></tr></thead><tbody><tr><td>39.01 s</td><td>28</td><td>1.39 s</td><td>0.69</td><td>10 frames</td><td>173 frames</td></tr></tbody></table></div>
+  <h3>Los actos y su paleta</h3>
+  <div class="tabla"><table><thead><tr><th>Acto</th><th>Duracion</th><th>Planos</th><th>s / plano</th><th>Paleta</th></tr></thead><tbody><tr><td><b>1. Diner del desierto</b></td><td>10.5 s</td><td>4</td><td>2.62</td><td><div class="paleta"><div class="swatch"><i style="background:#000001"></i><span>#000001</span></div><div class="swatch"><i style="background:#3E1D11"></i><span>#3E1D11</span></div><div class="swatch"><i style="background:#7F6F64"></i><span>#7F6F64</span></div><div class="swatch"><i style="background:#96B0C9"></i><span>#96B0C9</span></div><div class="swatch"><i style="background:#693D25"></i><span>#693D25</span></div></div></td></tr><tr><td><b>2. Quemada de rueda y donuts</b></td><td>13.2 s</td><td>9</td><td>1.46</td><td><div class="paleta"><div class="swatch"><i style="background:#43352E"></i><span>#43352E</span></div><div class="swatch"><i style="background:#6F431A"></i><span>#6F431A</span></div><div class="swatch"><i style="background:#000000"></i><span>#000000</span></div><div class="swatch"><i style="background:#EDB46B"></i><span>#EDB46B</span></div><div class="swatch"><i style="background:#BE7232"></i><span>#BE7232</span></div></div></td></tr><tr><td><b>3. Carretera y velocidad</b></td><td>15.4 s</td><td>15</td><td>1.03</td><td><div class="paleta"><div class="swatch"><i style="background:#5C493F"></i><span>#5C493F</span></div><div class="swatch"><i style="background:#C5C1B6"></i><span>#C5C1B6</span></div><div class="swatch"><i style="background:#1A1517"></i><span>#1A1517</span></div><div class="swatch"><i style="background:#000000"></i><span>#000000</span></div><div class="swatch"><i style="background:#DE9A5B"></i><span>#DE9A5B</span></div></div></td></tr></tbody></table></div>
+  <h3>Plano a plano</h3>
+  <div class="filtros" data-destino="planos-on_the_road"><button data-tipo="todos" aria-pressed="true">todos</button><button data-tipo="POV" aria-pressed="false">POV</button><button data-tipo="amplio" aria-pressed="false">amplio</button><button data-tipo="busto" aria-pressed="false">busto</button><button data-tipo="macro" aria-pressed="false">macro</button></div>
+  <div class="planos" id="planos-on_the_road">
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_01.png" width="460" height="259" loading="lazy"
+       alt="Plano 1 de on_the_road: muerde la hamburguesa, el queso cede">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">01</span>
+    <p class="meta">0.00s · 2.23s · 67 frames · fija, deriva minima</p>
+    <p class="acc">muerde la hamburguesa, el queso cede</p>
+    <p class="fun">Abrir con textura, no con cara. El espectador entra por el apetito.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_02.png" width="460" height="259" loading="lazy"
+       alt="Plano 2 de on_the_road: la mano rodea el vaso, el hielo asienta">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">02</span>
+    <p class="meta">2.23s · 0.83s · 25 frames · fija, dolly in muy corto</p>
+    <p class="acc">la mano rodea el vaso, el hielo asienta</p>
+    <p class="fun">Segundo inserto: instala el ritual antes de mostrar al hombre.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/on_the_road_03.png" width="460" height="259" loading="lazy"
+       alt="Plano 3 de on_the_road: mastica y mira fuera de cuadro, sin prisa">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">03</span>
+    <p class="meta">3.07s · 1.63s · 49 frames · fija, push in lento</p>
+    <p class="acc">mastica y mira fuera de cuadro, sin prisa</p>
+    <p class="fun">Revelacion del personaje. Llega tarde a proposito: ya te importaba.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_04.png" width="460" height="259" loading="lazy"
+       alt="Plano 4 de on_the_road: camina del diner al coche">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">04</span>
+    <p class="meta">4.70s · 5.77s · 173 frames · travelling lateral bajo, sigue los pies</p>
+    <p class="acc">camina del diner al coche</p>
+    <p class="fun">El plano mas largo del video (5.8 s). Ensena el mundo entero de una vez y deja respirar antes de acelerar.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/on_the_road_05.png" width="460" height="259" loading="lazy"
+       alt="Plano 5 de on_the_road: gira la cabeza hacia el coche">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">05</span>
+    <p class="meta">10.47s · 0.33s · 10 frames · fija, fondo oscuro</p>
+    <p class="acc">gira la cabeza hacia el coche</p>
+    <p class="fun">Pulso corto (0.33 s) que arranca el segundo acto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/on_the_road_06.png" width="460" height="259" loading="lazy"
+       alt="Plano 6 de on_the_road: se acomoda al volante">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">06</span>
+    <p class="meta">10.80s · 1.03s · 31 frames · fija desde el asiento del copiloto</p>
+    <p class="acc">se acomoda al volante</p>
+    <p class="fun">Cambia el mundo: de fuera a dentro. Mismo rostro, nueva luz.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_07.png" width="460" height="259" loading="lazy"
+       alt="Plano 7 de on_the_road: la mano gira la llave">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">07</span>
+    <p class="meta">11.83s · 1.03s · 31 frames · macro fija</p>
+    <p class="acc">la mano gira la llave</p>
+    <p class="fun">El gesto de arranque. Un inserto de mano vale mas que un plano del motor.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_08.png" width="460" height="259" loading="lazy"
+       alt="Plano 8 de on_the_road: la aguja del cuentarrevoluciones sube">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">08</span>
+    <p class="meta">12.87s · 0.77s · 23 frames · macro fija</p>
+    <p class="acc">la aguja del cuentarrevoluciones sube</p>
+    <p class="fun">Traduce el sonido en imagen. Aqui es donde el montaje pide musica.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_09.png" width="460" height="259" loading="lazy"
+       alt="Plano 9 de on_the_road: quemada de rueda parado, humo blanco">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">09</span>
+    <p class="meta">13.63s · 0.93s · 28 frames · fija baja, trasera</p>
+    <p class="acc">quemada de rueda parado, humo blanco</p>
+    <p class="fun">Primer estallido visual del video.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_10.png" width="460" height="259" loading="lazy"
+       alt="Plano 10 de on_the_road: derrapa en circulo entre el humo">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">10</span>
+    <p class="meta">14.57s · 2.00s · 60 frames · panoramica siguiendo el derrape</p>
+    <p class="acc">derrapa en circulo entre el humo</p>
+    <p class="fun">Ensena la accion completa una sola vez, para poder trocearla despues.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_11.png" width="460" height="259" loading="lazy"
+       alt="Plano 11 de on_the_road: dibuja el circulo de goma quemada">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">11</span>
+    <p class="meta">16.57s · 1.50s · 45 frames · cenital, rotacion lenta</p>
+    <p class="acc">dibuja el circulo de goma quemada</p>
+    <p class="fun">Cambio de eje radical. El cenital resetea la vista y evita que el derrape canse.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_12.png" width="460" height="259" loading="lazy"
+       alt="Plano 12 de on_the_road: la rueda gira, el humo pasa">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">12</span>
+    <p class="meta">18.07s · 1.27s · 38 frames · fija baja pegada a la rueda</p>
+    <p class="acc">la rueda gira, el humo pasa</p>
+    <p class="fun">Inserto de textura entre dos planos amplios.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_13.png" width="460" height="259" loading="lazy"
+       alt="Plano 13 de on_the_road: sigue derrapando, ya pequeno en cuadro">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">13</span>
+    <p class="meta">19.33s · 4.30s · 129 frames · fija larga</p>
+    <p class="acc">sigue derrapando, ya pequeno en cuadro</p>
+    <p class="fun">Cierra el acto dejando el coche lejos: el ojo descansa 4.3 s antes de la carretera.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/on_the_road_14.png" width="460" height="259" loading="lazy"
+       alt="Plano 14 de on_the_road: mira atras un instante">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">14</span>
+    <p class="meta">23.63s · 0.53s · 16 frames · fija sobre el retrovisor interior</p>
+    <p class="acc">mira atras un instante</p>
+    <p class="fun">Truco de continuidad: el rostro vuelve enmarcado, sin gastar un plano de cara entero.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_15.png" width="460" height="259" loading="lazy"
+       alt="Plano 15 de on_the_road: llega de frente por la carretera">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">15</span>
+    <p class="meta">24.17s · 0.80s · 24 frames · fija baja, el coche crece hacia camara</p>
+    <p class="acc">llega de frente por la carretera</p>
+    <p class="fun">Establece el tercer mundo: mesetas rojas, asfalto, horizonte.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_16.png" width="460" height="259" loading="lazy"
+       alt="Plano 16 de on_the_road: corre de perfil levantando polvo">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">16</span>
+    <p class="meta">24.97s · 1.17s · 35 frames · travelling lateral a la par</p>
+    <p class="acc">corre de perfil levantando polvo</p>
+    <p class="fun">El plano de velocidad de referencia. Todo lo que viene lo trocea.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_17.png" width="460" height="259" loading="lazy"
+       alt="Plano 17 de on_the_road: la rueda gira a velocidad">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">17</span>
+    <p class="meta">26.13s · 1.03s · 31 frames · travelling pegado a la carroceria</p>
+    <p class="acc">la rueda gira a velocidad</p>
+    <p class="fun">Detalle de fabricacion: el logo pintado vende que el coche existe.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_18.png" width="460" height="259" loading="lazy"
+       alt="Plano 18 de on_the_road: llamarada azul en los escapes">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">18</span>
+    <p class="meta">27.17s · 0.87s · 26 frames · fija trasera</p>
+    <p class="acc">llamarada azul en los escapes</p>
+    <p class="fun">Un color frio en medio de 15 s de naranja. Es el acento que despierta el ojo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_19.png" width="460" height="259" loading="lazy"
+       alt="Plano 19 de on_the_road: adelanta entre un camion y una pickup">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">19</span>
+    <p class="meta">28.03s · 1.67s · 50 frames · seguimiento desde atras</p>
+    <p class="acc">adelanta entre un camion y una pickup</p>
+    <p class="fun">Mete riesgo: por primera vez hay algo mas en la carretera.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/on_the_road_20.png" width="460" height="259" loading="lazy"
+       alt="Plano 20 de on_the_road: mantiene la mirada al frente">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">20</span>
+    <p class="meta">29.70s · 0.60s · 18 frames · fija sobre el retrovisor</p>
+    <p class="acc">mantiene la mirada al frente</p>
+    <p class="fun">Segundo reflejo. Recordar la cara justo antes de que el montaje se vuelva abstracto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="POV">
+  <img src="img/on_the_road_21.png" width="460" height="259" loading="lazy"
+       alt="Plano 21 de on_the_road: la carretera entra bajo el coche">
+  <div class="cuerpo">
+    <span class="etq POV">POV</span>
+    <span class="n">21</span>
+    <p class="meta">30.30s · 1.17s · 35 frames · fija dentro del coche, mirando al parabrisas</p>
+    <p class="acc">la carretera entra bajo el coche</p>
+    <p class="fun">Pone al espectador en el asiento. Un POV cada tanto ancla todo lo demas.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_22.png" width="460" height="259" loading="lazy"
+       alt="Plano 22 de on_the_road: las manos corrigen la trayectoria">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">22</span>
+    <p class="meta">31.47s · 0.67s · 20 frames · macro fija</p>
+    <p class="acc">las manos corrigen la trayectoria</p>
+    <p class="fun">Devuelve el cuerpo al plano sin volver a la cara.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_23.png" width="460" height="259" loading="lazy"
+       alt="Plano 23 de on_the_road: la rueda come asfalto">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">23</span>
+    <p class="meta">32.13s · 0.33s · 10 frames · travelling muy bajo junto a la rueda</p>
+    <p class="acc">la rueda come asfalto</p>
+    <p class="fun">Plano de 10 frames. Aqui empieza la aceleracion del montaje.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_24.png" width="460" height="259" loading="lazy"
+       alt="Plano 24 de on_the_road: viene de frente a maxima velocidad">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">24</span>
+    <p class="meta">32.47s · 0.50s · 15 frames · travelling frontal</p>
+    <p class="acc">viene de frente a maxima velocidad</p>
+    <p class="fun">Golpe de escala en medio de la rafaga.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_25.png" width="460" height="259" loading="lazy"
+       alt="Plano 25 de on_the_road: dos coches diminutos en la recta">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">25</span>
+    <p class="meta">32.97s · 1.20s · 36 frames · cenital alto (dron)</p>
+    <p class="acc">dos coches diminutos en la recta</p>
+    <p class="fun">Aire. Sin este plano la rafaga final agota.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_26.png" width="460" height="259" loading="lazy"
+       alt="Plano 26 de on_the_road: la aguja pasa la marca">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">26</span>
+    <p class="meta">34.17s · 1.10s · 33 frames · macro fija</p>
+    <p class="acc">la aguja pasa la marca</p>
+    <p class="fun">El dato numerico. Cierra lo que abrio el cuentarrevoluciones del plano 8.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/on_the_road_27.png" width="460" height="259" loading="lazy"
+       alt="Plano 27 de on_the_road: la rueda gira contra el sol bajo">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">27</span>
+    <p class="meta">35.27s · 2.13s · 64 frames · travelling bajo a contraluz</p>
+    <p class="acc">la rueda gira contra el sol bajo</p>
+    <p class="fun">Empieza a disolver la imagen en luz: preparacion del final.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/on_the_road_28.png" width="460" height="259" loading="lazy"
+       alt="Plano 28 de on_the_road: se va hacia el sol levantando polvo">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">28</span>
+    <p class="meta">37.40s · 1.61s · 48 frames · fija, el coche se aleja</p>
+    <p class="acc">se va hacia el sol levantando polvo</p>
+    <p class="fun">Plano final largo (1.6 s). Devuelve la respiracion y cierra.</p>
+  </div>
+</article></div>
+  <hr>
+  
+  <h2>black_sand — 76 s, 53 planos</h2>
+  <p>Aqui si hay historia, y el montaje funciona al reves: no acelera, <b>alterna</b>. Planos de 4 y 5 segundos donde pasa todo, y entre medias tres rafagas de vinetas de comic de 1 a 3 frames que duran menos de 0,4 segundos cada una. Ocho planos duran <b>un solo frame</b>. Ademas usa cinco negros de puntuacion, que <code>on_the_road</code> no tiene ni uno.</p>
+  <div class="tabla"><table><thead><tr><th>Duracion</th><th>Planos</th><th>Plano medio</th><th>Cortes / s</th><th>Mas corto</th><th>Mas largo</th></tr></thead><tbody><tr><td>75.58 s</td><td>53</td><td>1.43 s</td><td>0.69</td><td>1 frames</td><td>157 frames</td></tr></tbody></table></div>
+  <h3>Los actos y su paleta</h3>
+  <div class="tabla"><table><thead><tr><th>Acto</th><th>Duracion</th><th>Planos</th><th>s / plano</th><th>Paleta</th></tr></thead><tbody><tr><td><b>1. Persecucion en el callejon</b></td><td>9.5 s</td><td>12</td><td>0.79</td><td><div class="paleta"><div class="swatch"><i style="background:#010002"></i><span>#010002</span></div><div class="swatch"><i style="background:#3A7C91"></i><span>#3A7C91</span></div><div class="swatch"><i style="background:#4A2712"></i><span>#4A2712</span></div><div class="swatch"><i style="background:#E30F08"></i><span>#E30F08</span></div><div class="swatch"><i style="background:#335633"></i><span>#335633</span></div></div></td></tr><tr><td><b>2. Impacto comic y trato</b></td><td>16.0 s</td><td>11</td><td>1.46</td><td><div class="paleta"><div class="swatch"><i style="background:#623A26"></i><span>#623A26</span></div><div class="swatch"><i style="background:#6C8545"></i><span>#6C8545</span></div><div class="swatch"><i style="background:#438298"></i><span>#438298</span></div><div class="swatch"><i style="background:#1A0F06"></i><span>#1A0F06</span></div><div class="swatch"><i style="background:#375031"></i><span>#375031</span></div></div></td></tr><tr><td><b>3. Calle, KRAK! y la banda</b></td><td>22.6 s</td><td>13</td><td>1.74</td><td><div class="paleta"><div class="swatch"><i style="background:#000001"></i><span>#000001</span></div><div class="swatch"><i style="background:#A02811"></i><span>#A02811</span></div><div class="swatch"><i style="background:#74391B"></i><span>#74391B</span></div><div class="swatch"><i style="background:#215E91"></i><span>#215E91</span></div><div class="swatch"><i style="background:#141C19"></i><span>#141C19</span></div></div></td></tr><tr><td><b>4. Pelea nocturna, KRACK!!</b></td><td>19.4 s</td><td>11</td><td>1.76</td><td><div class="paleta"><div class="swatch"><i style="background:#000001"></i><span>#000001</span></div><div class="swatch"><i style="background:#3F6057"></i><span>#3F6057</span></div><div class="swatch"><i style="background:#421E14"></i><span>#421E14</span></div><div class="swatch"><i style="background:#7A3E20"></i><span>#7A3E20</span></div><div class="swatch"><i style="background:#293A3C"></i><span>#293A3C</span></div></div></td></tr><tr><td><b>5. Titulos BLACK SAND / OZ</b></td><td>8.0 s</td><td>6</td><td>1.34</td><td><div class="paleta"><div class="swatch"><i style="background:#000001"></i><span>#000001</span></div><div class="swatch"><i style="background:#545F7B"></i><span>#545F7B</span></div><div class="swatch"><i style="background:#AA2014"></i><span>#AA2014</span></div><div class="swatch"><i style="background:#F4EFEE"></i><span>#F4EFEE</span></div><div class="swatch"><i style="background:#1F171B"></i><span>#1F171B</span></div></div></td></tr></tbody></table></div>
+  <h3>Plano a plano</h3>
+  <div class="filtros" data-destino="planos-black_sand"><button data-tipo="todos" aria-pressed="true">todos</button><button data-tipo="amplio" aria-pressed="false">amplio</button><button data-tipo="busto" aria-pressed="false">busto</button><button data-tipo="impacto" aria-pressed="false">impacto</button><button data-tipo="macro" aria-pressed="false">macro</button><button data-tipo="titulo" aria-pressed="false">titulo</button></div>
+  <div class="planos" id="planos-black_sand">
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_01.png" width="460" height="259" loading="lazy"
+       alt="Plano 1 de black_sand: corre gritando, las trenzas al viento">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">01</span>
+    <p class="meta">0.00s · 3.17s · 95 frames · travelling lateral, handheld</p>
+    <p class="acc">corre gritando, las trenzas al viento</p>
+    <p class="fun">Empieza en mitad de la accion. Nadie explica nada.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_02.png" width="460" height="259" loading="lazy"
+       alt="Plano 2 de black_sand: mira atras aterrado">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">02</span>
+    <p class="meta">3.17s · 1.50s · 45 frames · handheld muy cerca, frontal</p>
+    <p class="acc">mira atras aterrado</p>
+    <p class="fun">Contraplano de miedo: instala que hay algo detras sin ensenarlo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_03.png" width="460" height="259" loading="lazy"
+       alt="Plano 3 de black_sand: barrido de camara">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">03</span>
+    <p class="meta">4.67s · 0.33s · 10 frames · whip pan</p>
+    <p class="acc">barrido de camara</p>
+    <p class="fun">El barrido hace de corte. Tapa el salto de posicion.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_04.png" width="460" height="259" loading="lazy"
+       alt="Plano 4 de black_sand: la puerta EXIT roja al fondo">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">04</span>
+    <p class="meta">5.00s · 0.40s · 12 frames · avance frontal por el callejon</p>
+    <p class="acc">la puerta EXIT roja al fondo</p>
+    <p class="fun">Ensena el mundo en 0.4 s. Un solo plano de ubicacion, y muy corto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_05.png" width="460" height="259" loading="lazy"
+       alt="Plano 5 de black_sand: 1 frame en negro">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">05</span>
+    <p class="meta">5.40s · 0.03s · 1 frames · negro</p>
+    <p class="acc">1 frame en negro</p>
+    <p class="fun">Parpadeo. El negro de 1 frame funciona como un golpe de bateria.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_06.png" width="460" height="259" loading="lazy"
+       alt="Plano 6 de black_sand: 3 frames casi negros">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">06</span>
+    <p class="meta">5.43s · 0.10s · 3 frames · negro con silueta</p>
+    <p class="acc">3 frames casi negros</p>
+    <p class="fun">Extiende el parpadeo lo justo para que se note.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_07.png" width="460" height="259" loading="lazy"
+       alt="Plano 7 de black_sand: charco, grafiti y la puerta roja">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">07</span>
+    <p class="meta">5.53s · 1.67s · 50 frames · contrapicado desde el suelo</p>
+    <p class="acc">charco, grafiti y la puerta roja</p>
+    <p class="fun">Reinstala el espacio despues del negro, ya desde el suelo: alguien ha caido.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_08.png" width="460" height="259" loading="lazy"
+       alt="Plano 8 de black_sand: mira hacia abajo, sin expresion">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">08</span>
+    <p class="meta">7.20s · 0.57s · 17 frames · fija, ligero picado</p>
+    <p class="acc">mira hacia abajo, sin expresion</p>
+    <p class="fun">Primera aparicion del protagonista. Llega despues del caos, y quieto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_09.png" width="460" height="259" loading="lazy"
+       alt="Plano 9 de black_sand: en el suelo mojado, la mano hacia camara">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">09</span>
+    <p class="meta">7.77s · 1.53s · 46 frames · picado</p>
+    <p class="acc">en el suelo mojado, la mano hacia camara</p>
+    <p class="fun">Cierra la persecucion: se resolvio fuera de cuadro.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_10.png" width="460" height="259" loading="lazy"
+       alt="Plano 10 de black_sand: lineas de velocidad rojas y negras">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">10</span>
+    <p class="meta">9.30s · 0.10s · 3 frames · vineta comic</p>
+    <p class="acc">lineas de velocidad rojas y negras</p>
+    <p class="fun">Primera rafaga de comic. 3 frames.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_11.png" width="460" height="259" loading="lazy"
+       alt="Plano 11 de black_sand: variante desplazada">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">11</span>
+    <p class="meta">9.40s · 0.03s · 1 frames · vineta comic</p>
+    <p class="acc">variante desplazada</p>
+    <p class="fun">1 frame. La variacion minima es lo que hace que se lea como vibracion.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_12.png" width="460" height="259" loading="lazy"
+       alt="Plano 12 de black_sand: fondo rojo pleno">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">12</span>
+    <p class="meta">9.43s · 0.07s · 2 frames · vineta comic</p>
+    <p class="acc">fondo rojo pleno</p>
+    <p class="fun">Invierte el fondo. Blanco-rojo-blanco: el ojo lo percibe como flash.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_13.png" width="460" height="259" loading="lazy"
+       alt="Plano 13 de black_sand: estallido blanco/negro/rojo">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">13</span>
+    <p class="meta">9.50s · 0.03s · 1 frames · vineta comic</p>
+    <p class="acc">estallido blanco/negro/rojo</p>
+    <p class="fun">Cierra la rafaga de 4 vinetas en 0.3 s.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/black_sand_14.png" width="460" height="259" loading="lazy"
+       alt="Plano 14 de black_sand: la bolsa cuelga contra la luz">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">14</span>
+    <p class="meta">9.53s · 2.63s · 79 frames · macro fija a contraluz</p>
+    <p class="acc">la bolsa cuelga contra la luz</p>
+    <p class="fun">El objeto que da nombre a todo. Despues de 9 s de ruido, 2.6 s de quietud.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_15.png" width="460" height="259" loading="lazy"
+       alt="Plano 15 de black_sand: de pie sobre el charco">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">15</span>
+    <p class="meta">12.17s · 2.13s · 64 frames · contrapicado bajo</p>
+    <p class="acc">de pie sobre el charco</p>
+    <p class="fun">Poder por el encuadre: se le ve desde abajo y sin cara.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_16.png" width="460" height="259" loading="lazy"
+       alt="Plano 16 de black_sand: Marco ensena la bolsa">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">16</span>
+    <p class="meta">14.30s · 4.23s · 127 frames · fija, dos perfiles enfrentados</p>
+    <p class="acc">Marco ensena la bolsa</p>
+    <p class="fun">El plano mas largo del acto (4.2 s). Toda la trama cabe aqui.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_17.png" width="460" height="259" loading="lazy"
+       alt="Plano 17 de black_sand: el otro grita, Marco no se mueve">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">17</span>
+    <p class="meta">18.53s · 2.60s · 78 frames · fija, mismo eje</p>
+    <p class="acc">el otro grita, Marco no se mueve</p>
+    <p class="fun">Contraste de temperatura: uno estalla, el otro no.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_18.png" width="460" height="259" loading="lazy"
+       alt="Plano 18 de black_sand: barrido verde y rojo">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">18</span>
+    <p class="meta">21.13s · 1.43s · 43 frames · whip pan</p>
+    <p class="acc">barrido verde y rojo</p>
+    <p class="fun">Aviso de que viene el golpe.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_19.png" width="460" height="259" loading="lazy"
+       alt="Plano 19 de black_sand: blanco/negro/rojo">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">19</span>
+    <p class="meta">22.57s · 0.03s · 1 frames · vineta comic</p>
+    <p class="acc">blanco/negro/rojo</p>
+    <p class="fun">1 frame.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_20.png" width="460" height="259" loading="lazy"
+       alt="Plano 20 de black_sand: variante">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">20</span>
+    <p class="meta">22.60s · 0.03s · 1 frames · vineta comic</p>
+    <p class="acc">variante</p>
+    <p class="fun">1 frame.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_21.png" width="460" height="259" loading="lazy"
+       alt="Plano 21 de black_sand: rojo pleno">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">21</span>
+    <p class="meta">22.63s · 0.07s · 2 frames · vineta comic</p>
+    <p class="acc">rojo pleno</p>
+    <p class="fun">2 frames. Cuatro vinetas en 0.16 s: esto es el golpe.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_22.png" width="460" height="259" loading="lazy"
+       alt="Plano 22 de black_sand: borron negro sobre verde">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">22</span>
+    <p class="meta">22.70s · 0.03s · 1 frames · smear</p>
+    <p class="acc">borron negro sobre verde</p>
+    <p class="fun">El smear traduce el comic de vuelta a la animacion.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_23.png" width="460" height="259" loading="lazy"
+       alt="Plano 23 de black_sand: sale despedido contra la pared">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">23</span>
+    <p class="meta">22.73s · 2.80s · 84 frames · sigue el golpe</p>
+    <p class="acc">sale despedido contra la pared</p>
+    <p class="fun">Consecuencia. Sin este plano el golpe no cuesta nada.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_24.png" width="460" height="259" loading="lazy"
+       alt="Plano 24 de black_sand: sonrie bajo la luz naranja">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">24</span>
+    <p class="meta">25.53s · 2.23s · 67 frames · fija, aro dorado en primer termino</p>
+    <p class="acc">sonrie bajo la luz naranja</p>
+    <p class="fun">Cambio de acto por corte de color: de verde acido a naranja.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_25.png" width="460" height="259" loading="lazy"
+       alt="Plano 25 de black_sand: camina entre carros de la compra">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">25</span>
+    <p class="meta">27.77s · 4.10s · 123 frames · fija baja</p>
+    <p class="acc">camina entre carros de la compra</p>
+    <p class="fun">Ubicacion nueva contada otra vez desde el suelo. Es la firma del corto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_26.png" width="460" height="259" loading="lazy"
+       alt="Plano 26 de black_sand: exhala humo hacia la calle azul">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">26</span>
+    <p class="meta">31.87s · 4.07s · 122 frames · fija de perfil</p>
+    <p class="acc">exhala humo hacia la calle azul</p>
+    <p class="fun">Respiro de 4 s. Prepara el contraste con la rafaga que viene.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_27.png" width="460" height="259" loading="lazy"
+       alt="Plano 27 de black_sand: levanta el puno, la arena se dispara">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">27</span>
+    <p class="meta">35.93s · 1.63s · 49 frames · fija, ligero contrapicado</p>
+    <p class="acc">levanta el puno, la arena se dispara</p>
+    <p class="fun">Anticipacion: el golpe se ve venir un plano antes.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_28.png" width="460" height="259" loading="lazy"
+       alt="Plano 28 de black_sand: letras blancas sobre negro">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">28</span>
+    <p class="meta">37.57s · 0.10s · 3 frames · fija</p>
+    <p class="acc">letras blancas sobre negro</p>
+    <p class="fun">La onomatopeya sustituye al plano de impacto. 3 frames.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_29.png" width="460" height="259" loading="lazy"
+       alt="Plano 29 de black_sand: misma palabra, trazo distinto">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">29</span>
+    <p class="meta">37.67s · 0.10s · 3 frames · fija</p>
+    <p class="acc">misma palabra, trazo distinto</p>
+    <p class="fun">Redibujada, no desplazada. Eso es lo que la hace vibrar.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_30.png" width="460" height="259" loading="lazy"
+       alt="Plano 30 de black_sand: fondo crema con textura de papel">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">30</span>
+    <p class="meta">37.77s · 0.10s · 3 frames · fija</p>
+    <p class="acc">fondo crema con textura de papel</p>
+    <p class="fun">Invierte el fondo a mitad de la rafaga.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_31.png" width="460" height="259" loading="lazy"
+       alt="Plano 31 de black_sand: ultima variante">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">31</span>
+    <p class="meta">37.87s · 0.07s · 2 frames · fija</p>
+    <p class="acc">ultima variante</p>
+    <p class="fun">Cuatro dibujos en 0.37 s.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/black_sand_32.png" width="460" height="259" loading="lazy"
+       alt="Plano 32 de black_sand: las manos se hunden en la arena">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">32</span>
+    <p class="meta">37.93s · 2.10s · 63 frames · macro fija</p>
+    <p class="acc">las manos se hunden en la arena</p>
+    <p class="fun">Explica el poder sin una linea de dialogo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_33.png" width="460" height="259" loading="lazy"
+       alt="Plano 33 de black_sand: 9 frames en negro">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">33</span>
+    <p class="meta">40.03s · 0.30s · 9 frames · negro</p>
+    <p class="acc">9 frames en negro</p>
+    <p class="fun">Negro largo: aqui separa secuencias, no golpea.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_34.png" width="460" height="259" loading="lazy"
+       alt="Plano 34 de black_sand: salta entre el andamiaje">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">34</span>
+    <p class="meta">40.33s · 3.33s · 100 frames · contrapicado nocturno</p>
+    <p class="acc">salta entre el andamiaje</p>
+    <p class="fun">Cambia el mundo a noche y neon sin explicarlo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_35.png" width="460" height="259" loading="lazy"
+       alt="Plano 35 de black_sand: 24 frames en negro">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">35</span>
+    <p class="meta">43.67s · 0.80s · 24 frames · negro</p>
+    <p class="acc">24 frames en negro</p>
+    <p class="fun">Elipsis. El negro hace de transicion de tiempo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_36.png" width="460" height="259" loading="lazy"
+       alt="Plano 36 de black_sand: circulo de arena visto desde arriba">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">36</span>
+    <p class="meta">44.47s · 3.70s · 111 frames · cenital</p>
+    <p class="acc">circulo de arena visto desde arriba</p>
+    <p class="fun">Eco del cenital del derrape en el otro video: el circulo como firma.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_37.png" width="460" height="259" loading="lazy"
+       alt="Plano 37 de black_sand: 11 frames en negro">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">37</span>
+    <p class="meta">48.17s · 0.37s · 11 frames · negro</p>
+    <p class="acc">11 frames en negro</p>
+    <p class="fun">Ultimo negro antes del clímax.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_38.png" width="460" height="259" loading="lazy"
+       alt="Plano 38 de black_sand: una figura de espaldas frente a la persiana">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">38</span>
+    <p class="meta">48.53s · 5.23s · 157 frames · fija</p>
+    <p class="acc">una figura de espaldas frente a la persiana</p>
+    <p class="fun">Plano mas largo del video (5.2 s). Baja el pulso a cero para poder subirlo de golpe.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_39.png" width="460" height="259" loading="lazy"
+       alt="Plano 39 de black_sand: el jefe grita, Marco aguanta">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">39</span>
+    <p class="meta">53.77s · 4.53s · 136 frames · fija, dos perfiles enfrentados</p>
+    <p class="acc">el jefe grita, Marco aguanta</p>
+    <p class="fun">Repite exactamente el encuadre del plano 16. La rima visual dice quien manda ahora.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="amplio">
+  <img src="img/black_sand_40.png" width="460" height="259" loading="lazy"
+       alt="Plano 40 de black_sand: sube los escalones rojos">
+  <div class="cuerpo">
+    <span class="etq amplio">amplio</span>
+    <span class="n">40</span>
+    <p class="meta">58.30s · 0.40s · 12 frames · fija baja</p>
+    <p class="acc">sube los escalones rojos</p>
+    <p class="fun">Tercer plano de botas. Ya es un motivo.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_41.png" width="460" height="259" loading="lazy"
+       alt="Plano 41 de black_sand: el puno de arena entra en cuadro">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">41</span>
+    <p class="meta">58.70s · 2.27s · 68 frames · fija de perfil</p>
+    <p class="acc">el puno de arena entra en cuadro</p>
+    <p class="fun">El impacto empieza dentro del plano realista, no en la vineta.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_42.png" width="460" height="259" loading="lazy"
+       alt="Plano 42 de black_sand: cara deformada, franja cian">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">42</span>
+    <p class="meta">60.97s · 0.10s · 3 frames · panel comic</p>
+    <p class="acc">cara deformada, franja cian</p>
+    <p class="fun">Panel completo: dibujo + texto + color complementario. El cian es el unico frio del acto.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_43.png" width="460" height="259" loading="lazy"
+       alt="Plano 43 de black_sand: variante">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">43</span>
+    <p class="meta">61.07s · 0.03s · 1 frames · panel comic</p>
+    <p class="acc">variante</p>
+    <p class="fun">1 frame.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_44.png" width="460" height="259" loading="lazy"
+       alt="Plano 44 de black_sand: el panel se sostiene">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">44</span>
+    <p class="meta">61.10s · 0.47s · 14 frames · panel comic</p>
+    <p class="acc">el panel se sostiene</p>
+    <p class="fun">14 frames: el unico panel que se deja leer.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_45.png" width="460" height="259" loading="lazy"
+       alt="Plano 45 de black_sand: 1 frame de la cara golpeada">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">45</span>
+    <p class="meta">61.57s · 0.03s · 1 frames · fija</p>
+    <p class="acc">1 frame de la cara golpeada</p>
+    <p class="fun">Vuelta al mundo real por un solo frame.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_46.png" width="460" height="259" loading="lazy"
+       alt="Plano 46 de black_sand: el puno de arena le entra en la boca">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">46</span>
+    <p class="meta">61.60s · 1.57s · 47 frames · fija</p>
+    <p class="acc">el puno de arena le entra en la boca</p>
+    <p class="fun">Ahora si se ve entero lo que la vineta habia insinuado.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="busto">
+  <img src="img/black_sand_47.png" width="460" height="259" loading="lazy"
+       alt="Plano 47 de black_sand: grita con la arena dentro">
+  <div class="cuerpo">
+    <span class="etq busto">busto</span>
+    <span class="n">47</span>
+    <p class="meta">63.17s · 4.40s · 132 frames · fija</p>
+    <p class="acc">grita con la arena dentro</p>
+    <p class="fun">4.4 s: el plano se alarga para que el golpe duela.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="macro">
+  <img src="img/black_sand_48.png" width="460" height="259" loading="lazy"
+       alt="Plano 48 de black_sand: 3 frames de dorado">
+  <div class="cuerpo">
+    <span class="etq macro">macro</span>
+    <span class="n">48</span>
+    <p class="meta">67.57s · 0.10s · 3 frames · macro desenfocado</p>
+    <p class="acc">3 frames de dorado</p>
+    <p class="fun">Puente de color hacia los titulos.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_49.png" width="460" height="259" loading="lazy"
+       alt="Plano 49 de black_sand: el titulo sobre la estructura metalica">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">49</span>
+    <p class="meta">67.67s · 3.83s · 115 frames · fija</p>
+    <p class="acc">el titulo sobre la estructura metalica</p>
+    <p class="fun">El nombre llega en el segundo 68 de 75. Se ha ganado antes.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_50.png" width="460" height="259" loading="lazy"
+       alt="Plano 50 de black_sand: logo rojo sobre la calle desenfocada">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">50</span>
+    <p class="meta">71.50s · 1.20s · 36 frames · fija</p>
+    <p class="acc">logo rojo sobre la calle desenfocada</p>
+    <p class="fun">Firma de estudio sobre imagen.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="titulo">
+  <img src="img/black_sand_51.png" width="460" height="259" loading="lazy"
+       alt="Plano 51 de black_sand: logo rojo sobre negro">
+  <div class="cuerpo">
+    <span class="etq titulo">titulo</span>
+    <span class="n">51</span>
+    <p class="meta">72.70s · 2.07s · 62 frames · fija</p>
+    <p class="acc">logo rojo sobre negro</p>
+    <p class="fun">Misma firma, ya limpia.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_52.png" width="460" height="259" loading="lazy"
+       alt="Plano 52 de black_sand: negro con un punto de luz">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">52</span>
+    <p class="meta">74.77s · 0.67s · 20 frames · negro</p>
+    <p class="acc">negro con un punto de luz</p>
+    <p class="fun">Salida.</p>
+  </div>
+</article>
+<article class="plano" data-tipo="impacto">
+  <img src="img/black_sand_53.png" width="460" height="259" loading="lazy"
+       alt="Plano 53 de black_sand: negro">
+  <div class="cuerpo">
+    <span class="etq impacto">impacto</span>
+    <span class="n">53</span>
+    <p class="meta">75.43s · 0.15s · 4 frames · negro</p>
+    <p class="acc">negro</p>
+    <p class="fun">Fin.</p>
+  </div>
+</article></div>
+</section>
+
+<section id="sistema" hidden>
+  <h1>El sistema, paso a paso</h1>
+  <p class="intro">Ocho pasos en orden fijo. Marca cada uno cuando lo tengas
+  <b>aprobado</b>, no cuando lo tengas hecho. Lo que marques se guarda en este dispositivo.</p>
+  <div class="aviso rojo">
+    <p><b>La regla dura:</b> nunca se anima sin un start frame aprobado, y nunca se hace un
+    start frame sin la hoja de personaje y la ubicacion aprobadas. Saltarse esto es la causa
+    numero uno de tirar el presupuesto.</p>
+  </div>
+  
+<div class="paso" id="paso-guion">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-guion-c">
+    <span class="orden">1</span>
+    <span class="titulo"><b>Guion y shotlist</b><small>Tres frases y una tabla. Sin esto no hay nada.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-guion-c" hidden>
+    <span class="donde">papel</span><span class="donde">analysis/mi_video/anotaciones.json</span>
+    
+<h4>Que hago</h4>
+<p>Primero el guion: <b>tres o cuatro frases</b>. Que pasa, quien lo hace, donde. Si no cabe
+en cuatro frases, todavia no lo tienes claro y no es momento de generar nada.</p>
+<p><code>on_the_road</code> entero cabe en una: <i>un hombre come en un diner del desierto,
+se sube a su coche y se va.</i> No hay mas trama. Lo que hace que funcione es el ritmo, y el
+ritmo se decide en la shotlist.</p>
+<p>Despues la shotlist: <b>una fila por plano</b>, con tipo, camara, sujeto, accion y — la
+columna que la gente se salta — <b>por que existe ese plano</b>. Si no sabes contestar a eso
+en una frase, el plano sobra. Quitalo antes de que te cueste dinero.</p>
+
+<h4>Los seis tipos de plano</h4>
+<p>Con estos seis se construye cualquier cosa:</p>
+<ul>
+  <li><b>busto</b> — quien es. La cara. Es el unico encuadre donde la identidad aguanta.</li>
+  <li><b>macro</b> — que toca. Un objeto de cerca. Es lo que hace que el mundo parezca real.</li>
+  <li><b>amplio</b> — donde esta. El sitio entero.</li>
+  <li><b>POV</b> — mete al espectador dentro. Uno cada 8 o 10 planos, no mas.</li>
+  <li><b>impacto</b> — 1 a 3 frames. Vineta de comic, smear, o negro.</li>
+  <li><b>titulo</b> — la palabra. Onomatopeya o rotulo.</li>
+</ul>
+
+<h4>La celula que se repite</h4>
+<p>El referente usa esta figura tres veces con distinto contenido:</p>
+<div class="prompt"><pre>busto (quien)  →  macro (que toca)  →  amplio (donde)  →  macro (textura)</pre>
+<button class="copiar" type="button">copiar</button></div>
+<p>Los planos 5-6-7-8 de <code>on_the_road</code> y los 20-21-22-23 son la misma figura con
+otro decorado. No es falta de ideas: es que <b>el espectador reconoce el patron y deja de
+tener que orientarse</b>, y entonces puedes acelerar.</p>
+
+<h4>El ritmo, que es lo que de verdad decides aqui</h4>
+<p>Dos formas, y las dos funcionan:</p>
+<ul>
+  <li><b>Acelerar sin parar</b> (<code>on_the_road</code>): 2,62 s por plano, luego 1,46,
+    luego 1,03. Ni un solo tramo mas lento que el anterior.</li>
+  <li><b>Alternar</b> (<code>black_sand</code>): planos de 4 y 5 segundos donde pasa la
+    historia, y entre medias rafagas de cuatro vinetas en 0,3 segundos.</li>
+</ul>
+<p>Lo que <b>no</b> funciona es un ritmo constante. Treinta planos de 1,3 segundos seguidos
+se leen como un anuncio, no como una pelicula.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿Cada plano tiene escrito <b>por que existe</b>? Si no, sobra.</li><li>¿Hay algun plano cuya accion lleve &laquo;y luego&raquo;? Son dos planos.</li><li>¿Hay dos amplios seguidos sin cambiar el eje? Aburre.</li><li>¿Suman las duraciones lo que quieres que dure el video?</li><li>¿Hay al menos un plano largo de respiro antes de cada rafaga?</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-guion">
+      Hecho y aprobado: Guion y shotlist</label>
+  </div>
+</div>
+<div class="paso" id="paso-nombres">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-nombres-c">
+    <span class="orden">2</span>
+    <span class="titulo"><b>Sistema de nombres</b><small>Cinco minutos ahora, tres horas de lio evitadas despues.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-nombres-c" hidden>
+    <span class="donde">terminal</span><span class="donde">tu carpeta</span>
+    
+<h4>Que hago</h4>
+<p>Decidir como se llama todo <b>antes</b> de generar la primera imagen. Cuando tengas 28
+planos, 6 personajes y 90 imagenes, el nombre es lo unico que te dice que es cada cosa.</p>
+
+<div class="prompt"><pre>video-ia/
+  analysis/mi_video/        shotlist y anotaciones
+  characters/mi_personaje/  sheet.md + ref/ + element.txt
+  locations/mi_sitio/       sheet.md + ref/
+  props/mi_objeto/          sheet.md + ref/
+  prompts/mi_video/         01_slug.md … 28_slug.md
+  assets/frames/            mi_video_01_slug.png   ← los start frames
+  clips/                    mi_video_01_slug.mp4   ← los videos
+  montaje/lista_mi_video.tsv</pre>
+<button class="copiar" type="button">copiar</button></div>
+
+<h4>La regla</h4>
+<p><b>Numero de plano con dos digitos, guion bajo, slug corto con guiones.</b>
+<code>07_macro-llave</code>. Nunca <code>llave.png</code>, nunca <code>final_v2_bueno.png</code>.</p>
+<p>Dos digitos y no uno: con un digito, el orden alfabetico pone el plano 10 antes del 2.
+Con dos, <b>el orden alfabetico es el orden del montaje</b> y no tienes que pensarlo nunca mas.</p>
+
+<h4>Y el mismo nombre en las tres carpetas</h4>
+<p>El plano 7 es <code>07_macro-llave</code> en su ficha de prompt, en su start frame y en su
+clip. Cuando algo falle — y va a fallar — vas a poder ver los tres archivos del mismo plano de
+un vistazo. Si cada carpeta usa su propio criterio, cada fallo te cuesta diez minutos de
+buscar.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿Todos los numeros de plano llevan dos digitos?</li><li>¿El mismo plano se llama igual en <code>prompts/</code>, en <code>assets/frames/</code> y en <code>clips/</code>?</li><li>¿Hay algun archivo con &laquo;final&raquo;, &laquo;v2&raquo; o &laquo;bueno&raquo; en el nombre? Renombralo.</li><li>¿Los slugs no llevan espacios, tildes ni mayusculas?</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-nombres">
+      Hecho y aprobado: Sistema de nombres</label>
+  </div>
+</div>
+<div class="paso" id="paso-ubicaciones">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-ubicaciones-c">
+    <span class="orden">3</span>
+    <span class="titulo"><b>Ubicaciones</b><small>El mundo va primero. La razon es la luz.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-ubicaciones-c" hidden>
+    <span class="donde">Nano Banana Pro</span><span class="donde">Seedream 5</span><span class="donde">locations/</span>
+    
+<h4>Por que va antes que el personaje</h4>
+<p>Una ubicacion define hora del dia, direccion de la luz y temperatura de color. Si generas
+al personaje primero, lo generas con una luz inventada, y luego cada plano tiene su propia luz.
+El resultado son planos correctos por separado que <b>no cortan entre si</b>, y eso no se
+arregla en el montaje.</p>
+
+<h4>Que hago</h4>
+<p>Un bloque de descripcion inmutable por ubicacion, y tres planchas: <b>amplio</b>
+(el sitio entero, define geometria y luz), <b>medio</b> (la zona que usaras de fondo en la
+mayoria de planos) y <b>detalle</b> (una textura, para los insertos macro).</p>
+
+<h4>Las tres reglas del bloque de ubicacion</h4>
+<ul>
+  <li><b>Cuenta las cosas.</b> <code>six stools</code> fija la geometria;
+    <code>several stools</code> no fija nada.</li>
+  <li><b>La luz va al final y ocupa la mitad del bloque.</b> Es lo que hace que el personaje
+    encaje despues.</li>
+  <li><b>Di cuantas fuentes hay y que no hay mas.</b> <code>Two light sources and no
+    others</code> evita que el modelo meta un relleno suave que te destroza el contraste.</li>
+</ul>
+
+<h4>Ejemplo del referente</h4>
+<p>El callejon de <code>black_sand</code>. Fijate en la ultima frase, que es la que hace todo
+el trabajo:</p>
+<div class="prompt"><pre>LOCATION — GREEN ALLEY: a narrow service alley between two brick buildings, both
+walls painted over in flaking olive green #627B4F and acid yellow-green #8FA24A,
+covered in layered spray tags scrubbed half away. A steel fire door at the far end
+painted signal red #F20D0A with a lit red EXIT sign above it. Wet cracked asphalt
+underfoot holding standing water that reflects the red door. Two dumpsters, a rusted
+downpipe, a fire escape overhead cutting the sky into strips. Flat overcast daylight
+falling straight down and bouncing off the green walls, tinting everything green.</pre>
+<button class="copiar" type="button">copiar</button></div>
+<p>Sin <code>bouncing off the green walls, tinting everything green</code> te salen personajes
+con piel normal delante de una pared verde. Con esa frase, la luz verde entra en la piel, que
+es lo que hace que el personaje pertenezca al sitio.</p>
+
+<h4>Las variantes de hora del dia</h4>
+<p>Se generan <b>editando la plancha amplia aprobada</b>, no de cero. <code>gpt_image_2</code>
+o <code>seedream_v5_pro</code> con <code>is_inpaint</code>. Si generas cada hora por separado
+te salen <b>tres sitios distintos</b>, no el mismo sitio a tres horas. Es un fallo silencioso:
+cada imagen esta bien y el conjunto no cuadra.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿La luz viene <b>del mismo lado</b> en las tres planchas?</li><li>¿La paleta cae dentro de tu <code>STYLE.md</code>? Comparala con los hex, no de memoria.</li><li>¿Hay texto legible (carteles, senales)? Si no lo controlas, quitalo.</li><li>¿Cuadra la geometria entre la amplia y la media? Cuenta ventanas, postes, puertas.</li><li>¿Se puede poner a una persona ahi? Sin suelo claro ni escala humana, el personaje flotara.</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-ubicaciones">
+      Hecho y aprobado: Ubicaciones</label>
+  </div>
+</div>
+<div class="paso" id="paso-personajes">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-personajes-c">
+    <span class="orden">4</span>
+    <span class="titulo"><b>Personajes</b><small>Un bloque de identidad y seis planchas. Aqui se gana o se pierde todo.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-personajes-c" hidden>
+    <span class="donde">Nano Banana Pro</span><span class="donde">Elements de Higgsfield</span><span class="donde">characters/</span>
+    
+<h4>La regla del rostro</h4>
+<div class="aviso rojo">
+  <p><b>El rostro solo se mantiene consistente en busto o plano medio.</b> En cuerpo entero la
+  cara ocupa un 2 % del cuadro y ningun modelo la conserva: te devuelve una cara distinta cada
+  vez. No se arregla subiendo la resolucion ni pidiendo <i>same face</i>.</p>
+</div>
+<p>Lo que se hace en su lugar: en planos amplios la hoja de referencia aporta <b>la
+silueta</b> — ropa, proporcion, peinado, color — y la cara se deja pequena, de espaldas o
+tapada por el encuadre. La cara se reserva para <b>insertos de busto</b>.</p>
+<p><code>on_the_road</code> tiene 5 bustos en 28 planos, y en <b>dos de esos cinco</b> la cara
+aparece reflejada en un retrovisor. Ese truco merece que lo copies: enmarcar la cara dentro de
+un objeto — espejo, ventanilla, pantalla, charco — te deja meter un primer plano sin gastar un
+plano entero de cara, y ademas <b>el marco justifica que la imagen sea distinta</b>.</p>
+
+<h4>El bloque de identidad inmutable</h4>
+<p>Un texto de 70 a 110 palabras que se pega <b>identico, sin cambiar una coma</b>, en todos
+los prompts donde salga el personaje. Ordenado de lo mas estable a lo menos: edad y
+complexion → estructura de la cara → pelo → marcas distintivas → vestuario → props.</p>
+<p>Y al final, siempre, una lista de <b>lo que nunca lleva</b>.</p>
+
+<div class="prompt"><pre>CHARACTER — THE DRIVER: a Black man in his early thirties, lean build, deep warm
+brown skin. Square jaw, heavy straight eyebrows, wide-set dark brown eyes with
+tired lower lids, broad nose, full mouth held closed. Full black beard connected
+to the moustache, trimmed short and even along the jawline. Hair hidden under a
+deep navy #2C3550 six-panel cap, curved brim, worn straight, no logo and no
+lettering. Single thick gold hoop earring in the left ear only. Oversized cream
+#EFE7DA unlined blazer, sleeves pushed to the forearm, worn over bare chest.
+Black leather watch on the left wrist.
+NEVER: sunglasses, leather jacket, necklace, tattoos, visible text on clothing,
+open mouth, smile.</pre>
+<button class="copiar" type="button">copiar</button></div>
+
+<p>Tres decisiones que parecen tonterias y no lo son:</p>
+<ul>
+  <li><code>left ear only</code> — sin el lado, el pendiente salta de oreja entre planos.</li>
+  <li><code>no logo and no lettering</code> — el referente lleva un bordado en la gorra. Un
+    modelo escribe mal, y un bordado ilegible es el fallo mas visible que existe.</li>
+  <li><code>NEVER: … smile</code> — este personaje no sonrie en 39 segundos, y los modelos
+    sonrien por defecto. La lista negativa ahorra mas reintentos que cualquier adjetivo.</li>
+</ul>
+
+<h4>Las seis planchas</h4>
+<p>Busto frontal, tres cuartos, perfil, cuerpo entero y dos expresiones. <b>Mismo vestuario,
+mismo fondo neutro <code>#6B6B6B</code> y misma luz plana en las seis.</b> Fondo neutro aunque
+tu video sea verde acido: si la referencia lleva la luz de la escena, arrastra ese color a
+todos los planos.</p>
+<p>Y describe las expresiones <b>por musculos, no por emocion</b>. <i>Angry</i> le da permiso
+al modelo para cambiar la cara entera; <i>brow lowered, jaw set, mouth closed</i> mueve tres
+cosas y deja el resto igual.</p>
+
+<h4>Element, no Soul</h4>
+<p>Higgsfield tiene dos mecanismos y no sirven para lo mismo:</p>
+<div class="tabla"><table>
+<thead><tr><th></th><th>Element</th><th>Soul ID</th></tr></thead>
+<tbody>
+<tr><td>Que le das</td><td>1 imagen o varias</td><td>5 a 20 fotos de <b>una persona real</b></td></tr>
+<tr><td>Cuanto tarda</td><td>instantaneo</td><td>unos 10 minutos de entrenamiento</td></tr>
+<tr><td>Sujetos por plano</td><td>varios</td><td>uno solo</td></tr>
+<tr><td>No humanos</td><td>si (props, ubicaciones)</td><td>no</td></tr>
+<tr><td>Modelos de video</td><td><code>seedance_2_0</code>, Kling 3.0, Cinema Studio</td><td>ninguno</td></tr>
+</tbody></table></div>
+<p><b>Para este estilo, Element.</b> Soul esta hecho para clonar la cara de una persona real a
+partir de fotos y solo funciona con los modelos fotorrealistas. Nuestro personaje es un dibujo
+pintado, y ademas en varios planos hay dos personajes a la vez, cosa que Soul no puede.
+Element es tambien el unico que funciona con Seedance 2.0, que es lo que anima.</p>
+<p>Una vez creado, en el prompt escribes <code>&lt;&lt;&lt;element_id&gt;&gt;&gt;</code> y el
+sistema inyecta la imagen. Puedes poner varios:
+<code>&lt;&lt;&lt;A&gt;&gt;&gt; mira a &lt;&lt;&lt;B&gt;&gt;&gt; en el callejon</code>.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>Pon las 6 planchas juntas y <b>tapa la ropa con la mano</b>: ¿es la misma persona?</li><li>¿La marca distintiva esta en el <b>mismo lado</b> en todas? Se voltea sola muy a menudo.</li><li>¿La distancia entre los ojos y el ancho de mandibula son iguales en el frontal y en el 3/4?</li><li>¿El color de la ropa sigue siendo el mismo hex, o ha derivado?</li><li>¿Hay texto legible en la ropa? Quitalo.</li><li>¿La luz es identica en las seis? Si no, no sirven de referencia.</li><li>¿El bloque mide entre 70 y 110 palabras? Cuentalas.</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-personajes">
+      Hecho y aprobado: Personajes</label>
+  </div>
+</div>
+<div class="paso" id="paso-props">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-props-c">
+    <span class="orden">5</span>
+    <span class="titulo"><b>Props</b><small>El 31 % del metraje. Es lo que hace que parezca produccion de verdad.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-props-c" hidden>
+    <span class="donde">Nano Banana Pro</span><span class="donde">props/</span>
+    
+<h4>El dato</h4>
+<p>En <code>on_the_road</code>, <b>11 de los 28 planos son insertos macro de objetos</b>: la
+hamburguesa, el vaso, la llave, el cuentarrevoluciones, la rueda tres veces, el escape, el
+volante, el velocimetro. Son el 31 % del metraje.</p>
+<p>Ninguno hace avanzar la historia. Y sin ellos el video no funciona.</p>
+<p>Lo que hacen es dar a entender que <b>existe un mundo fisico</b>. Un coche que solo se ve
+de lejos es un dibujo de un coche. Un coche del que has visto la llave entrar en el contacto,
+la aguja subir y la goma de la rueda es un objeto. El espectador no lo razona, lo da por hecho.</p>
+<p>Y es la parte mas barata: un macro de un objeto sobre fondo desenfocado es lo que mejor
+generan todos los modelos y lo que menos reintentos necesita.</p>
+
+<h4>Heroe o de inserto</h4>
+<ul>
+  <li><b>Heroe</b> si sale en mas de cinco planos. Se trata como un personaje: bloque largo,
+    varias vistas, Element propio. El coche amarillo sale en 20 de 28 planos.</li>
+  <li><b>De inserto</b> si sale en uno o dos. Bloque corto, una plancha, y a otra cosa.</li>
+</ul>
+
+<h4>Un prop no se genera dentro de su plano</h4>
+<p>Se genera aparte, aislado, con su propia hoja. Si lo generas dentro de la escena cambia
+entre plano y plano, y los tres macros de rueda tienen que ser <b>la misma rueda</b>.</p>
+<p>Cuando el objeto se repite, <b>el bloque no cambia. Solo cambian el encuadre y la luz:</b></p>
+<div class="tabla"><table>
+<thead><tr><th>Plano</th><th>Encuadre</th><th>Que cambia</th></tr></thead>
+<tbody>
+<tr><td>12</td><td>quieta a ras de suelo</td><td>humo de la quemada cruzando</td></tr>
+<tr><td>23</td><td>travelling pegado en movimiento</td><td>el asfalto en rafaga debajo</td></tr>
+<tr><td>27</td><td>a contraluz contra el sol</td><td>los radios como silueta</td></tr>
+</tbody></table></div>
+<p>Esa es la diferencia entre tres planos de la misma rueda y tres ruedas distintas.</p>
+
+<h4>Las cuatro frases que salvan un macro</h4>
+<ul>
+  <li><code>The face is NOT in frame.</code> — los modelos meten media cara en el borde con
+    una frecuencia sorprendente.</li>
+  <li><code>no readable characters</code> / <code>no brand names</code> — en cualquier
+    superficie plana.</li>
+  <li>La linea de desgaste: <code>dusty, stone-chipped, used</code>. Sin ella todo sale nuevo
+    y de catalogo, y eso rompe el estilo pintado.</li>
+  <li><code>shallow depth of field</code> + <code>out of focus behind</code> — es lo que hace
+    que se lea como macro de camara y no como ilustracion de producto.</li>
+</ul>
+
+<h4>Y busca donde meter un color frio</h4>
+<p>El plano 18 es una llamarada azul en el escape: <b>0,87 segundos, y es el unico color frio
+de quince segundos de naranja</b>. Eso es lo que evita que el ojo se sature. Cuando montes el
+tuyo, decide a proposito donde va el tuyo.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿Es <b>el mismo objeto</b> en todas las planchas? Mira las marcas de desgaste, no la forma.</li><li>¿Tiene texto, logo o numeros que no controlas? Quitalos.</li><li>¿Se entiende la escala? Un macro sin referencia de tamano se lee como otra cosa.</li><li>¿Reacciona el material a la luz de la ubicacion donde va a aparecer?</li><li>¿Has contado en cuantos planos sale antes de decidir si es heroe?</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-props">
+      Hecho y aprobado: Props</label>
+  </div>
+</div>
+<div class="paso" id="paso-frames">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-frames-c">
+    <span class="orden">6</span>
+    <span class="titulo"><b>Start frames</b><small>Una imagen fija por plano. Nada se anima sin esto aprobado.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-frames-c" hidden>
+    <span class="donde">Nano Banana Pro</span><span class="donde">prompts/mi_video/</span>
+    
+<h4>Que es un start frame</h4>
+<p>La <b>primera imagen</b> del plano, generada como imagen fija y aprobada antes de animar
+nada. El modelo de video parte de ella, asi que todo lo que este mal ahi va a estar mal en el
+video, y en el video cuesta cinco veces mas arreglarlo.</p>
+
+<h4>Como se monta el prompt</h4>
+<p>Siempre en este orden, y el orden importa porque los modelos pesan mas el principio:</p>
+<div class="prompt"><pre>[BLOQUE DE ESTILO]        ← lo que no puede fallar, por eso va primero
+[BLOQUE DE PERSONAJE]     ← solo si el personaje sale en este plano
+[BLOQUE DE UBICACION]
+[BLOQUE DE PROP]
+[ENCUADRE Y ACCION CONGELADA]</pre>
+<button class="copiar" type="button">copiar</button></div>
+
+<h4>El bloque de estilo de los referentes</h4>
+<p>Pegalo al principio de cualquier prompt de imagen y obtienes ese look. Fijate en que
+<b>no nombra ninguna pelicula ni ninguna serie</b>: describe la tecnica. Nombrar una obra
+concreta funciona a veces, pero te ata a material con derechos y varios modelos lo rechazan.
+Describir la tecnica funciona siempre y es tuyo.</p>
+<div class="prompt"><p class="rotulo">Bloque de estilo de on_the_road</p><pre>Painted 2D animation still, graphic-novel finish: visible oil-brush strokes, thick
+confident contour lines only on facial features, flat colour blocking chosen over
+photographic detail. Golden-hour desert light — hard warm key from a low sun, deep
+unlit shadows, almost no ambient fill. Limited palette: cadmium yellow #F2BB34,
+burnt sienna #B36D27, warm sand #E4CCA6, dust cream #D7C29E, deep navy #2C3550,
+near-black #0A0A0C. Airborne dust, bloom on highlights, subtle chromatic aberration,
+fine film grain. Cinematic 16:9, shallow depth of field, no text, no watermark, no logo.</pre><button class="copiar" type="button">copiar</button></div>
+<div class="prompt"><p class="rotulo">Bloque de estilo de black_sand</p><pre>Painted 2D animation still, street graphic-novel finish: loose visible brushwork,
+ragged ink contours, large flat colour fields, detail sacrificed for silhouette.
+Hard single-source coloured light — acid green daylight bounced off alley walls, or
+red neon against cyan night. Limited palette: signal red #F20D0A, olive green #627B4F,
+acid yellow-green #8FA24A, deep teal #295C70, warm brown #5A2B19, paper white #F1EAE8,
+pure black #000000. Heavy grain, dry-brush splatter, halation on neon. Cinematic 16:9,
+high contrast, no text, no watermark, no logo.</pre><button class="copiar" type="button">copiar</button></div>
+
+<h4>Accion congelada, no accion</h4>
+<p>El encuadre del start frame describe <b>un instante</b>, no un movimiento. No
+<i>&laquo;gira la llave&raquo;</i> sino <i>&laquo;la mano sobre la llave ya metida en el
+contacto&raquo;</i>. El movimiento se lo pides despues al modelo de video.</p>
+
+<h4>Y no adjuntes referencias de mas</h4>
+<div class="aviso rojo">
+  <p><b>En un macro de manos u objetos, no adjuntes la referencia de la cara.</b> Cada
+  referencia de mas empuja al modelo a usarla, y acabas con media cara asomando en el borde de
+  un plano de una llave. Es la trampa mas cara del sistema y la comete todo el mundo.</p>
+</div>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿La paleta cae dentro de la del acto? Comparala con los hex, no de memoria.</li><li>¿La luz viene del mismo lado que en el plano anterior y el siguiente?</li><li>¿Hay texto legible que no hayas pedido? Logos, matriculas, carteles.</li><li>¿Deja el encuadre aire para el movimiento que vas a pedir en el video?</li><li>Si es busto: ¿es la misma cara que en la hoja? Ponlas lado a lado.</li><li>Si es macro: ¿se cuela media cara en el borde?</li><li>Si es amplio: ¿coinciden silueta y ropa? La cara ahi no se sostiene y no pasa nada.</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-frames">
+      Hecho y aprobado: Start frames</label>
+  </div>
+</div>
+<div class="paso" id="paso-video">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-video-c">
+    <span class="orden">7</span>
+    <span class="titulo"><b>Animar</b><small>Un clip por plano. Una toma continua. Nunca describas un corte.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-video-c" hidden>
+    <span class="donde">Seedance 2.0</span><span class="donde">clips/</span>
+    
+<h4>La estructura del prompt de video</h4>
+<div class="prompt"><pre>SPECS: 16:9, 4s, 720p, painted 2D animation, one continuous take.
+REFERENCES: start frame attached as start_image. Sheets attached as image_references.
+ACTION: [una sola cosa que pasa]
+CAMERA: [un termino del banco de camara]
+GUARDRAIL: single continuous shot, no cuts, no scene changes, no transitions.
+Face and identity unchanged from the reference. Palette, brushwork and lighting
+unchanged from the start frame. No text, no watermark, no logo, no subtitles.
+SFX: [dos o tres sonidos concretos]</pre>
+<button class="copiar" type="button">copiar</button></div>
+
+<h4>Nunca describas un corte</h4>
+<div class="aviso rojo">
+  <p>Un prompt de video describe <b>UNA toma continua</b>. Si escribes <i>&laquo;el coche
+  arranca y luego cortamos a la rueda&raquo;</i>, el modelo intenta hacer las dos cosas en el
+  mismo clip y te devuelve una transformacion rara en medio. Los cortes se hacen en el montaje.</p>
+  <p><b>Si tu frase lleva &laquo;y luego&raquo;, &laquo;despues&raquo; o
+  &laquo;entonces&raquo;, son dos planos.</b> Vuelve a la shotlist y separalos.</p>
+</div>
+
+<h4>La linea GUARDRAIL no es decoracion</h4>
+<p><code>single continuous shot, no cuts</code> es lo que evita que el modelo se invente un
+corte a mitad del clip. <code>face and identity unchanged</code> es lo unico que sostiene la
+cara a lo largo del video. Y <code>palette, brushwork and lighting unchanged</code> es lo que
+frena la deriva hacia fotorrealismo, que es el fallo mas frecuente y el que no se arregla en
+el montaje.</p>
+
+<h4>Seedance no baja de 4 segundos</h4>
+<p>Tu plano dura 1,03 segundos. Seedance genera minimo 4. Asi que <b>generas 4 y recortas en
+el montaje</b>, y no recortas del principio: recortas del centro. Los primeros 5 o 10 frames
+de un clip generado casi siempre arrancan con un titubeo mientras la imagen se asienta.</p>
+
+<h4>Los planos de 1 a 5 frames no se animan</h4>
+<p>Son <b>imagenes fijas</b>. En <code>black_sand</code> son 19 de 53 planos. Generar 4
+segundos de video para usar 2 frames es tirar el dinero.</p>
+<p>Y para una rafaga: genera <b>cuatro dibujos distintos</b> de la misma vineta, no la misma
+imagen cuatro veces. Que cada frame sea un dibujo distinto es exactamente lo que produce la
+vibracion. Alterna ademas el fondo dentro de la rafaga — blanco, rojo, blanco — porque el ojo
+lo lee como un flash.</p>
+
+<h4>Prueba corta antes de la larga</h4>
+<p>6 segundos a 720p. Miras. <b>Solo entonces</b> la version larga. Un plano largo que sale
+mal cuesta lo mismo que tres pruebas cortas.</p>
+
+<h4>Resolucion</h4>
+<p>Genera a <b>720p</b>. Seedance 2.5 renderiza nativo a 720p: lo que llama 1080p es un
+reescalado del proveedor, no detalle nuevo. Si necesitas 4K de verdad, el unico que lo da es
+Seedance 2.0. Sube la resolucion solo en el pase final de los planos que ya has aprobado.</p>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿Hay algun corte dentro del clip? Entonces el prompt describia dos acciones.</li><li>¿Se mantiene la cara hasta el final del clip, o deriva en el ultimo segundo?</li><li>¿Hace la camara lo que pediste, o el modelo ha anadido un zoom por su cuenta?</li><li>¿Hay suficientes segundos <b>utiles seguidos</b>, sin el titubeo del arranque?</li><li>¿Se mantiene la pincelada, o ha derivado hacia fotorrealismo? Eso se regenera.</li><li>¿Has generado los planos de menos de 5 frames como imagen y no como video?</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-video">
+      Hecho y aprobado: Animar</label>
+  </div>
+</div>
+<div class="paso" id="paso-montaje">
+  <button class="cab" type="button" aria-expanded="false" aria-controls="paso-montaje-c">
+    <span class="orden">8</span>
+    <span class="titulo"><b>Montaje y sonido</b><small>Donde el video pasa de ser 28 clips a ser una pelicula.</small></span>
+    <span class="flecha">&#9656;</span>
+  </button>
+  <div class="contenido" id="paso-montaje-c" hidden>
+    <span class="donde">ffmpeg</span><span class="donde">CapCut</span><span class="donde">Premiere</span>
+    
+<h4>Que hago</h4>
+<p>Concatenar en el orden de la shotlist, recortar cada plano a su duracion, meter las vinetas
+como imagenes fijas de 1 a 3 frames, hacer las rampas de velocidad, superponer las
+onomatopeyas y mezclar el sonido.</p>
+
+<h4>Con terminal</h4>
+<div class="prompt"><pre>python3 tools/generar_lista_montaje.py mi_video
+./scripts/montage.sh --lista montaje/lista_mi_video.tsv \
+                     --musica montaje/musica.mp3 --dry-run</pre>
+<button class="copiar" type="button">copiar</button></div>
+<p>Quita <code>--dry-run</code> cuando la lista te convenza. Exporta 16:9 y 9:16 de una vez.</p>
+
+<h4>Sin terminal</h4>
+<p>Todo esto se hace igual en CapCut o Premiere; esta explicado paso a paso en
+<code>scripts/MONTAJE_SIN_TERMINAL.md</code>. Los puntos que se hacen mal casi siempre:</p>
+<ul>
+  <li><b>Recorta del centro del clip, no del principio.</b></li>
+  <li><b>Los negros no son todos iguales.</b> De 1 a 3 frames golpean; de 10 a 25 separan
+    secuencias y hacen de elipsis temporal. No es el mismo recurso.</li>
+  <li><b>La onomatopeya es un dibujo, no una fuente.</b> Genera el PNG con fondo transparente
+    y superponlo. Si usas el texto de CapCut con una fuente del sistema, se nota
+    inmediatamente. Y ponla <b>descentrada</b>, tocando un borde, con las letras superpuestas.</li>
+  <li><b>La rampa de velocidad</b> es velocidad real hasta el 60 % del clip y de golpe 0,4x,
+    no un ralenti uniforme.</li>
+</ul>
+
+<h4>Sonido</h4>
+<p>Musica en una pista, voz o efectos en otra, y <b>ducking</b>: que la musica baje cuando hay
+voz. En CapCut es &laquo;Reduccion automatica&raquo;; en Premiere, Sonido esencial &rarr;
+Ducking. Normaliza la mezcla final a <b>&minus;14 LUFS</b>, que es lo que piden YouTube,
+Instagram y TikTok.</p>
+
+<h4>Para el vertical, no escales con barras</h4>
+<p>Recorta el centro, o mete el 16:9 sobre una copia difuminada de si mismo. Y si tienes
+tiempo, <b>reencuadra plano a plano</b>: en los planos amplios el sujeto no esta en el centro,
+y un recorte central automatico se lo come.</p>
+
+<div class="aviso rojo">
+  <p><b>Lo que no se arregla aqui:</b> una cara que cambia entre planos (se arregla en la hoja
+  de personaje), un clip que ha derivado a fotorrealismo (se regenera), un corte que el modelo
+  se invento dentro del clip (se reescribe la linea <code>ACTION</code>), y la luz de un plano
+  que viene del lado contrario que la del anterior. Un grado de color disimula un poco; si la
+  fuente esta al otro lado, no hay grado que lo salve.</p>
+</div>
+
+    <h4>Que revisar antes de seguir</h4>
+    <ul class="revisar"><li>¿Suma el montaje la duracion que decia la shotlist?</li><li>¿Entra cada plano <b>despues</b> del titubeo inicial de su clip?</li><li>¿Son las cuatro vinetas de una rafaga cuatro dibujos distintos, o el mismo repetido?</li><li>¿Esta la mezcla a &minus;14 LUFS?</li><li>¿Funciona el vertical, o el recorte central se come al sujeto en los amplios?</li><li>Ve el video entero <b>con sonido y a tamano completo</b>. Es el unico test que cuenta.</li></ul>
+    <label class="check"><input type="checkbox" data-paso="paso-montaje">
+      Hecho y aprobado: Montaje y sonido</label>
+  </div>
+</div>
+</section>
+
+<section id="replicar" hidden>
+  <h1>Replicar con mi personaje</h1>
+  <p class="intro">Rellena esto y los prompts de abajo se van montando solos. Lo que escribas
+  se guarda en este dispositivo. Escribe <b>en ingles</b>: los modelos de imagen entienden
+  mucho mejor las palabras de color, encuadre y luz en ingles, aunque tu pienses en espanol.</p>
+  <form class="form" id="form-replicar" autocomplete="off"
+        onsubmit="return false"><div class="campo"><label for="nombre">Nombre del personaje</label><input name="nombre" type="text" placeholder="EL MENSAJERO"><small>En mayusculas. Es la etiqueta que veras en todos los prompts.</small></div><div class="campo"><label for="edad">Edad y complexion</label><input name="edad" type="text" placeholder="a woman in her forties, broad-shouldered"><small>En ingles. Los modelos responden mejor.</small></div><div class="campo"><label for="piel">Piel</label><input name="piel" type="text" placeholder="pale skin with an olive undertone"></div><div class="campo ancho"><label for="cara">Cara</label><textarea name="cara" rows="3" placeholder="square jaw, thin straight eyebrows, deep-set grey eyes, hooked nose, thin mouth held closed"></textarea><small>Mandibula, cejas, ojos, nariz, boca en reposo.</small></div><div class="campo"><label for="pelo">Pelo</label><input name="pelo" type="text" placeholder="black hair shaved at the sides and swept back on top"><small>El corte exacto, no &#x27;pelo corto&#x27;.</small></div><div class="campo"><label for="marca">Marca distintiva</label><input name="marca" type="text" placeholder="a vertical scar through the left eyebrow"><small>Una o dos como mucho. Y di el lado.</small></div><div class="campo ancho"><label for="ropa">Vestuario</label><textarea name="ropa" rows="3" placeholder="a heavy oxblood #6B2029 canvas jacket over a grey shirt, dark work trousers, black boots"></textarea><small>Con hex en los colores.</small></div><div class="campo"><label for="nunca">Lo que nunca lleva</label><input name="nunca" type="text" placeholder="sunglasses, jewellery, visible text on clothing, a smile"><small>Lo que el modelo anadiria solo.</small></div><div class="campo ancho"><label for="ubicacion">Ubicacion</label><textarea name="ubicacion" rows="3" placeholder="LOCATION — LOADING BAY: a concrete loading dock at night, four sodium lamps overhead, wet floor, roller shutters, cold blue city light beyond"></textarea><small>Cuenta los elementos. La luz al final.</small></div><div class="campo"><label for="accion">Accion del plano</label><input name="accion" type="text" placeholder="she sets the crate down and straightens up"><small>UNA sola cosa que pasa. Nada de &#x27;y luego&#x27;.</small></div><div class="campo"><label for="camara">Camara</label><select name="camara"><option value="static shot with a slight handheld drift">static shot with a slight handheld drift</option><option value="slow push in">slow push in</option><option value="dolly in">dolly in</option><option value="crash zoom in">crash zoom in</option><option value="tracking shot alongside the subject">tracking shot alongside the subject</option><option value="low tracking shot at ground level">low tracking shot at ground level</option><option value="whip pan to the left">whip pan to the left</option><option value="slow orbit around the subject">slow orbit around the subject</option><option value="low angle looking up">low angle looking up</option><option value="high angle looking down">high angle looking down</option><option value="top-down aerial view">top-down aerial view</option><option value="POV, camera as the character&#x27;s eyes">POV, camera as the character&#x27;s eyes</option><option value="macro lens, extreme close-up">macro lens, extreme close-up</option><option value="static shot, locked off">static shot, locked off</option></select></div><div class="campo ancho"><label for="estilo">Bloque de estilo</label><textarea name="estilo" rows="3" placeholder=""></textarea><small>Pegalo desde tu STYLE.md, o usa el de uno de los referentes.</small></div></form>
+  <div class="aviso">
+    <p><b>El bloque de identidad debe medir entre 70 y 110 palabras.</b> Mas corto no fija la
+    cara; mas largo se diluye y el modelo empieza a ignorar el final.</p>
+  </div>
+  <h2>Tus prompts</h2>
+  <div class="prompt"><p class="rotulo">1 · Bloque de identidad — pegalo en todos los prompts de este personaje</p><pre data-plantilla="CHARACTER — {{nombre}}: {{edad}}, {{piel}}. {{cara}}. {{pelo}}. {{marca}}. {{ropa}}.
+NEVER: {{nunca}}."></pre><button class="copiar" type="button">copiar</button></div><div class="prompt"><p class="rotulo">2 · Hoja de referencia — busto frontal</p><pre data-plantilla="{{estilo}}
+
+CHARACTER — {{nombre}}: {{edad}}, {{piel}}. {{cara}}. {{pelo}}. {{marca}}. {{ropa}}.
+NEVER: {{nunca}}.
+
+Front-facing bust portrait, head and shoulders, eyes level with the lens, neutral
+expression, looking straight into camera. Even soft key light from front-left, flat
+mid-grey #6B6B6B seamless background, no props, no scenery. Character reference
+sheet plate. 4:3."></pre><button class="copiar" type="button">copiar</button></div><div class="prompt"><p class="rotulo">3 · Hoja de referencia — perfil</p><pre data-plantilla="{{estilo}}
+
+CHARACTER — {{nombre}}: {{edad}}, {{piel}}. {{cara}}. {{pelo}}. {{marca}}. {{ropa}}.
+NEVER: {{nunca}}.
+
+Full profile bust portrait, head at exactly 90 degrees to camera-left, neutral
+expression, {{marca}} clearly readable on the camera side. Same lighting and same
+flat mid-grey #6B6B6B background. Character reference sheet plate. 4:3."></pre><button class="copiar" type="button">copiar</button></div><div class="prompt"><p class="rotulo">4 · Start frame de un plano</p><pre data-plantilla="{{estilo}}
+
+CHARACTER — {{nombre}}: {{edad}}, {{piel}}. {{cara}}. {{pelo}}. {{marca}}. {{ropa}}.
+NEVER: {{nunca}}.
+
+{{ubicacion}}
+
+Bust portrait of {{nombre}} in the location above, the moment frozen mid-action:
+{{accion}}. Shallow depth of field, the background out of focus. 16:9."></pre><button class="copiar" type="button">copiar</button></div><div class="prompt"><p class="rotulo">5 · Prompt de video para Seedance 2.0</p><pre data-plantilla="SPECS: 16:9, 4s, 720p, painted 2D animation, one continuous take.
+REFERENCES: start frame attached as start_image. Character sheet of {{nombre}}
+attached as image_reference.
+ACTION: {{accion}}. One single continuous movement, nothing else happens.
+CAMERA: {{camara}}.
+GUARDRAIL: single continuous shot, no cuts, no scene changes, no transitions.
+Face and identity unchanged from the reference. Palette, brushwork and lighting
+unchanged from the start frame. No text, no watermark, no logo, no subtitles.
+SFX: [dos o tres sonidos concretos]."></pre><button class="copiar" type="button">copiar</button></div>
+  <div class="aviso verde">
+    <p><b>El orden dentro del prompt importa.</b> Estilo primero, identidad despues, encuadre
+    al final. Los modelos pesan mas el principio del texto, y el estilo es lo que no se puede
+    permitir fallar.</p>
+  </div>
+</section>
+
+<section id="errores" hidden>
+  <h1>Los errores que vas a cometer</h1>
+  <p class="intro">Estos siete son los que se repiten. Los tres primeros son los que mas
+  presupuesto se llevan.</p>
+  
+<div class="tarjeta">
+  <h3>Texto en la ropa que no se lee</h3>
+  <p><b>Como se ve:</b> Un bordado, un logo o unas letras en una camiseta que en cada plano dicen algo distinto y en ninguno dicen nada.</p>
+  <p><b>Por que pasa:</b> Los modelos de imagen escriben mal. Si el prompt menciona texto, o si la referencia lleva texto, el modelo lo intenta y falla, y falla distinto cada vez.</p>
+  <p><b>Que hacer:</b> Pon <code>no logo and no lettering</code> en el bloque de identidad. Si el texto es necesario para la historia, hazlo <b>deliberadamente ilegible</b>: pequeno, borroso, cortado por el encuadre. Un modelo si sabe hacer eso. O ponlo en el montaje.</p>
+</div>
+<div class="tarjeta">
+  <h3>La cara cambia en cuerpo entero</h3>
+  <p><b>Como se ve:</b> El personaje es reconocible en los bustos y en los planos amplios es otra persona.</p>
+  <p><b>Por que pasa:</b> En cuerpo entero la cara ocupa un 2 % del cuadro. No hay resolucion ni referencia que lo arregle: no es un fallo, es una limitacion.</p>
+  <p><b>Que hacer:</b> <b>Deja de intentarlo.</b> En amplios, que la referencia aporte solo la silueta y que el encuadre no muestre la cara de cerca: de espaldas, de perfil lejano, en sombra. Reserva la cara para bustos. Y usa el truco del retrovisor: enmarcar la cara dentro de un espejo o una ventanilla te deja un primer plano barato y consistente.</p>
+</div>
+<div class="tarjeta">
+  <h3>Describir cortes dentro de un prompt de video</h3>
+  <p><b>Como se ve:</b> El clip hace una cosa, y a mitad se transforma en otra con un fundido raro en medio.</p>
+  <p><b>Por que pasa:</b> El prompt describia dos acciones: &laquo;arranca <b>y luego</b> sale&raquo;. El modelo intenta hacer las dos en una sola toma.</p>
+  <p><b>Que hacer:</b> Una accion por plano. Si tu frase lleva &laquo;y luego&raquo;, &laquo;despues&raquo; o &laquo;entonces&raquo;, son dos planos: vuelve a la shotlist y separalos. Y deja <code>single continuous shot, no cuts</code> en la linea GUARDRAIL siempre.</p>
+</div>
+<div class="tarjeta">
+  <h3>Animar sin start frame</h3>
+  <p><b>Como se ve:</b> Cada plano tiene su propio estilo, su propia paleta y su propia luz. Por separado estan bien; juntos no parecen la misma pelicula.</p>
+  <p><b>Por que pasa:</b> Sin start frame, el modelo de video inventa el encuadre, la luz y el color desde cero en cada plano.</p>
+  <p><b>Que hacer:</b> Nunca animes sin un start frame <b>aprobado</b>. Es la regla dura del sistema y el pipeline la impone: si el start frame no esta en <code>assets/frames/aprobados.txt</code>, se niega a lanzar el video.</p>
+</div>
+<div class="tarjeta">
+  <h3>Grado de color distinto entre planos</h3>
+  <p><b>Como se ve:</b> Dos planos correctos que, uno detras de otro, dan un salto. Normalmente cambia el calor de la imagen o el lado del que viene la luz.</p>
+  <p><b>Por que pasa:</b> Se genero cada plano por separado sin fijar la luz en el bloque de ubicacion, o se generaron variantes de hora del dia desde cero en vez de editando la plancha aprobada.</p>
+  <p><b>Que hacer:</b> Mete la frase de luz en el <b>bloque de ubicacion</b>, no en el prompt de cada plano, y genera las variantes de hora <b>editando</b> la plancha amplia aprobada. Un grado de color al final disimula diferencias pequenas; si la luz viene del lado contrario, no hay grado que lo salve y hay que regenerar.</p>
+</div>
+<div class="tarjeta">
+  <h3>Saturar de referencias</h3>
+  <p><b>Como se ve:</b> Un macro de una llave donde asoma media cara en el borde. Un plano de botas donde aparece un coche que no venia a cuento.</p>
+  <p><b>Por que pasa:</b> Se adjuntaron todas las referencias del proyecto a todos los planos. Cada referencia empuja al modelo a usarla.</p>
+  <p><b>Que hacer:</b> <b>Adjunta solo lo que sale en ese plano.</b> En insertos macro donde el personaje no aparece, no pongas su referencia. Y anade <code>The face is NOT in frame.</code> al encuadre: decir lo que <b>excluye</b> un encuadre funciona mejor que decir lo que incluye.</p>
+</div>
+<div class="tarjeta">
+  <h3>Ritmo constante</h3>
+  <p><b>Como se ve:</b> Treinta planos de 1,3 segundos seguidos. Se ve como un anuncio, no como una pelicula, y a los veinte segundos deja de importar lo que pasa.</p>
+  <p><b>Por que pasa:</b> Se decidio una duracion &laquo;que queda bien&raquo; y se aplico a todo.</p>
+  <p><b>Que hacer:</b> O aceleras sin parar (<code>on_the_road</code>: 2,62 &rarr; 1,46 &rarr; 1,03 segundos por plano) o alternas planos largos con rafagas (<code>black_sand</code>). Y en los dos casos, <b>mete un plano largo de respiro antes de cada rafaga</b>: sin el, la rafaga no golpea, agota.</p>
+</div>
+</section>
+
+<section id="automatico" hidden>
+  <h1>Modo automatico</h1>
+  <p class="intro">Todo lo que la guia explica a mano tiene su comando. Es opcional: el
+  sistema funciona igual abriendo la web de tu proveedor y pegando prompts. Pero si vas a
+  hacer mas de un video, esto te ahorra las tres horas de copiar y pegar.</p>
+  <div class="aviso rojo">
+    <p><b>Sin <code>video-ia/.env</code> no se llama a ninguna API.</b> El pipeline arranca en
+    modo simulacion: te dice que lanzaria y cuanto costaria, y para. Es lo que quieres la
+    primera vez.</p>
+  </div>
+  <div class="tabla"><table><thead><tr><th>Paso manual</th><th>Comando equivalente</th><th>Que hace</th></tr></thead><tbody><tr><td>Extraer los planos de un video de referencia</td><td><code>python3 tools/extraer_frames.py</code></td><td>Detecta cortes con ffmpeg y saca los frames</td></tr><tr><td>Ver la paleta de cada acto</td><td><code>python3 tools/paleta.py</code></td><td>Mide los hex dominantes y los de acento</td></tr><tr><td>Escribir la shotlist</td><td><code>python3 tools/shotlist.py</code></td><td>Monta <code>shotlist.md</code> desde los datos y las anotaciones</td></tr><tr><td>Escribir los prompts de los 28 planos</td><td><code>python3 tools/generar_prompts.py</code></td><td>Ensambla estilo + personaje + ubicacion + encuadre en una ficha por plano</td></tr><tr><td>Saber lo que va a costar</td><td><code>python3 -m pipeline coste on_the_road</code></td><td>Estima sin lanzar nada</td></tr><tr><td>Generar los start frames</td><td><code>python3 -m pipeline frames on_the_road</code></td><td>Uno por plano, 4 a la vez</td></tr><tr><td>Aprobar un start frame</td><td><code>echo &quot;on_the_road_07_macro-llave.png&quot; &gt;&gt; assets/frames/aprobados.txt</code></td><td><b>Despues de mirarlo.</b> Sin esto el paso siguiente se niega</td></tr><tr><td>Animar los planos aprobados</td><td><code>python3 -m pipeline video on_the_road</code></td><td>Se salta los planos sin start frame aprobado</td></tr><tr><td>Preparar la lista de montaje</td><td><code>python3 tools/generar_lista_montaje.py on_the_road</code></td><td>Saca el manifiesto desde la shotlist</td></tr><tr><td>Montar</td><td><code>./scripts/montage.sh --lista montaje/lista_on_the_road.tsv</code></td><td>Concatena, inserta, rampas, musica, y exporta 16:9 y 9:16</td></tr><tr><td>Ver que haria sin hacerlo</td><td><code>… --dry-run</code></td><td>Funciona en el pipeline y en montage.sh</td></tr></tbody></table></div>
+  <h2>Las seis reglas que impone el codigo</h2>
+  <p>No son consejos de un README: si las rompes, el pipeline se niega a seguir.</p>
+  <div class="tabla"><table><thead><tr><th></th><th>Regla</th><th>Que pasa si la rompes</th></tr></thead><tbody><tr><td>1</td><td>No se anima sin start frame <b>aprobado</b></td><td>Se salta el plano y te dice cual y por que</td></tr><tr><td>2</td><td>Primero 6 s a 720p, luego la version larga</td><td>No lanza la version larga si no hay una prueba aprobada</td></tr><tr><td>3</td><td>Seedance 2.5 es nativo 720p y no da 4K</td><td>Rechaza pedir 4K a un modelo que solo lo reescala</td></tr><tr><td>4</td><td>Maximo 4 trabajos a la vez</td><td>Encola. Ante un 429 reintenta con espera creciente</td></tr><tr><td>5</td><td>Todo trabajo se anota en <code>runs/log.jsonl</code></td><td>Puedes reproducir un plano que salio bien, con sus parametros exactos</td></tr><tr><td>6</td><td>Presupuesto por ejecucion y por trabajo</td><td>Para en seco y te dice cuanto llevas</td></tr></tbody></table></div>
+  <div class="aviso">
+    <p><b>&laquo;Aprobado&raquo; no es &laquo;existe el archivo&raquo;.</b> El nombre tiene que
+    estar en <code>assets/frames/aprobados.txt</code>. Mirar una imagen y decidir si vale es un
+    paso humano, y el pipeline no puede hacerlo por ti. Aprobar sin mirar es lo mismo que no
+    tener la regla.</p>
+  </div>
+  <h2>Por que no hay Midjourney</h2>
+  <p>Midjourney no tiene API oficial y sus terminos prohiben la automatizacion, asi que no hay
+  forma legitima de meterlo aqui. Para el look pintado, <code>seedream_v5_pro</code> o
+  <code>nano_banana_pro</code> con el bloque de estilo dan un resultado equivalente. Midjourney
+  se usa <b>a mano</b>, y solo para style frames, si tu decides hacerlo.</p>
+</section>
+
+<section id="glosario" hidden>
+  <h1>Glosario</h1>
+  <p class="intro">Sin dar nada por sabido. Si un termino de la guia no esta aqui y no lo
+  entiendes, es un fallo de la guia.</p>
+  <h2>Camara</h2><div class="tabla"><table><thead><tr><th>Termino</th><th>Que significa</th></tr></thead><tbody><tr><td><b>plano</b></td><td>Un trozo de video sin cortes. La unidad con la que se trabaja.</td></tr><tr><td><b>busto</b></td><td>Encuadre de cabeza y hombros. El unico donde la cara aguanta igual entre planos.</td></tr><tr><td><b>plano medio</b></td><td>De la cintura para arriba.</td></tr><tr><td><b>plano amplio / general</b></td><td>El sitio entero. Sirve para orientar al espectador.</td></tr><tr><td><b>macro / inserto</b></td><td>Un objeto muy de cerca. En los referentes son un tercio del metraje.</td></tr><tr><td><b>POV</b></td><td><i>Point of view.</i> La camara son los ojos del personaje.</td></tr><tr><td><b>cenital</b></td><td>Desde arriba, mirando hacia abajo.</td></tr><tr><td><b>contrapicado</b></td><td>Desde abajo mirando hacia arriba. Hace que el sujeto domine.</td></tr><tr><td><b>dolly</b></td><td>La camara avanza o retrocede fisicamente. No es un zoom.</td></tr><tr><td><b>travelling / tracking</b></td><td>La camara se desplaza acompanando al sujeto.</td></tr><tr><td><b>pan</b></td><td>La camara gira sobre su eje sin moverse de sitio.</td></tr><tr><td><b>tilt</b></td><td>Como el pan, pero en vertical.</td></tr><tr><td><b>whip pan</b></td><td>Barrido tan rapido que la imagen se borra. Sirve de corte.</td></tr><tr><td><b>crash zoom</b></td><td>Zoom brutal en menos de medio segundo. Gastalo una vez.</td></tr></tbody></table></div><h2>Montaje</h2><div class="tabla"><table><thead><tr><th>Termino</th><th>Que significa</th></tr></thead><tbody><tr><td><b>speed ramp</b></td><td>Velocidad normal que de golpe pasa a camara lenta.</td></tr><tr><td><b>smear</b></td><td>Borron de movimiento dibujado a proposito, tipico de animacion.</td></tr><tr><td><b>vineta</b></td><td>Un frame de estilo comic insertado en medio de la accion.</td></tr><tr><td><b>onomatopeya</b></td><td>La palabra dibujada: KRAK, KRACK. En este estilo nunca es una fuente del sistema.</td></tr><tr><td><b>negro de puntuacion</b></td><td>Frames en negro entre planos. Cortos golpean; largos separan secuencias.</td></tr><tr><td><b>ducking</b></td><td>Que la musica baje automaticamente cuando hay voz.</td></tr><tr><td><b>LUFS</b></td><td>Medida de volumen percibido. Las redes piden &minus;14 LUFS.</td></tr><tr><td><b>16:9 / 9:16</b></td><td>Horizontal (YouTube) y vertical (Reels, TikTok, Shorts).</td></tr></tbody></table></div><h2>IA</h2><div class="tabla"><table><thead><tr><th>Termino</th><th>Que significa</th></tr></thead><tbody><tr><td><b>prompt</b></td><td>El texto que le das al modelo para que genere algo.</td></tr><tr><td><b>start frame</b></td><td>La primera imagen de un plano, generada aparte y aprobada antes de animar. La base de todo el sistema.</td></tr><tr><td><b>bloque de estilo</b></td><td>Un texto de 60 a 90 palabras que describe el look y se pega al principio de todos los prompts de imagen.</td></tr><tr><td><b>bloque de identidad</b></td><td>El texto de 70 a 110 palabras que describe a un personaje y se pega identico en todos sus prompts.</td></tr><tr><td><b>Element</b></td><td>En Higgsfield, una referencia reutilizable de personaje, ubicacion o prop. Se invoca en el prompt con <code>&lt;&lt;&lt;id&gt;&gt;&gt;</code>.</td></tr><tr><td><b>Soul ID</b></td><td>Entrenamiento con 5 a 20 fotos de una persona real. Solo un sujeto y solo modelos fotorrealistas. <b>No es lo que necesitas aqui.</b></td></tr><tr><td><b>image reference</b></td><td>Una imagen que se adjunta al prompt para que el modelo la imite. Adjuntar de mas hace dano.</td></tr><tr><td><b>seed</b></td><td>Numero que fija el azar. Con la misma seed y el mismo prompt sale lo mismo.</td></tr><tr><td><b>inpaint</b></td><td>Editar una parte de una imagen dejando el resto intacto.</td></tr><tr><td><b>upscale</b></td><td>Agrandar una imagen o un video ya generado. <b>No anade detalle real.</b></td></tr><tr><td><b>resolucion nativa</b></td><td>La resolucion a la que el modelo genera de verdad. Por encima, lo que te da es un upscale.</td></tr><tr><td><b>deriva</b></td><td>Cuando el resultado se aleja poco a poco de la referencia a lo largo de un clip o de una serie de planos.</td></tr><tr><td><b>guardrail</b></td><td>La parte del prompt que dice lo que <b>no</b> puede pasar.</td></tr><tr><td><b>t2v / i2v</b></td><td><i>Text to video</i> (solo texto) y <i>image to video</i> (parte de una imagen). Aqui siempre i2v.</td></tr><tr><td><b>credito</b></td><td>La moneda de los proveedores. Lo que cuesta cada generacion.</td></tr></tbody></table></div>
+</section>
+</main>
+<footer>
+  <p>Generado por <code>tools/generar_guia.py</code> desde el analisis de
+  <code>analysis/</code>. Para actualizarla, cambia la shotlist y vuelve a correrlo.</p>
+</footer>
+<div class="barra">
+  <span class="cuenta">0 de 8 pasos</span>
+  <span class="pista"><span class="relleno"></span></span>
+  <button type="button">reiniciar</button>
+</div>
+<script>
+(function () {
+  'use strict';
+  var CLAVE = 'b79-video-ia-v1';
+
+  // ------------------------------------------------------------ guardado
+  // localStorage puede lanzar en modo privado o con las cookies bloqueadas, asi que
+  // todo lectura y escritura va envuelto: la pagina tiene que funcionar sin el.
+  function leer() {
+    try { return JSON.parse(localStorage.getItem(CLAVE) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function escribir(o) {
+    try { localStorage.setItem(CLAVE, JSON.stringify(o)); } catch (e) { /* sin guardado */ }
+  }
+  var estado = leer();
+
+  // ------------------------------------------------------------ pestanas
+  var botones = Array.prototype.slice.call(document.querySelectorAll('nav.tabs button'));
+  var vistas = Array.prototype.slice.call(document.querySelectorAll('main > section'));
+
+  function mostrar(id, guardar) {
+    vistas.forEach(function (s) { s.hidden = (s.id !== id); });
+    botones.forEach(function (b) {
+      b.setAttribute('aria-selected', String(b.dataset.vista === id));
+    });
+    if (guardar !== false) {
+      estado.vista = id; escribir(estado);
+      if (history.replaceState) history.replaceState(null, '', '#' + id);
+    }
+    window.scrollTo(0, 0);
+  }
+  botones.forEach(function (b) {
+    b.addEventListener('click', function () { mostrar(b.dataset.vista); });
+  });
+  var inicial = (location.hash || '').replace('#', '') || estado.vista || 'inicio';
+  if (!document.getElementById(inicial)) inicial = 'inicio';
+  mostrar(inicial, false);
+
+  // ------------------------------------------------------------ acordeon
+  var pasos = Array.prototype.slice.call(document.querySelectorAll('.paso'));
+  pasos.forEach(function (paso) {
+    var cab = paso.querySelector('.cab');
+    var cont = paso.querySelector('.contenido');
+    var abierto = estado['abierto:' + paso.id];
+    cont.hidden = !abierto;
+    paso.classList.toggle('abierto', !!abierto);
+    cab.setAttribute('aria-expanded', String(!!abierto));
+    cab.addEventListener('click', function () {
+      var ahora = cont.hidden;
+      cont.hidden = !ahora;
+      paso.classList.toggle('abierto', ahora);
+      cab.setAttribute('aria-expanded', String(ahora));
+      estado['abierto:' + paso.id] = ahora; escribir(estado);
+    });
+  });
+
+  // ------------------------------------------------------------ checkboxes
+  var checks = Array.prototype.slice.call(document.querySelectorAll('input[data-paso]'));
+  var pista = document.querySelector('.barra .relleno');
+  var cuenta = document.querySelector('.barra .cuenta');
+
+  function progreso() {
+    var hechos = checks.filter(function (c) { return c.checked; }).length;
+    if (pista) pista.style.width = (checks.length ? (100 * hechos / checks.length) : 0) + '%';
+    if (cuenta) cuenta.textContent = hechos + ' de ' + checks.length + ' pasos';
+  }
+  checks.forEach(function (c) {
+    var k = 'hecho:' + c.dataset.paso;
+    c.checked = !!estado[k];
+    var paso = document.getElementById(c.dataset.paso);
+    if (paso) paso.classList.toggle('hecho', c.checked);
+    c.addEventListener('change', function () {
+      estado[k] = c.checked; escribir(estado);
+      if (paso) paso.classList.toggle('hecho', c.checked);
+      progreso();
+    });
+  });
+  progreso();
+
+  var reset = document.querySelector('.barra button');
+  if (reset) reset.addEventListener('click', function () {
+    if (!confirm('¿Desmarcar los ' + checks.length + ' pasos?')) return;
+    checks.forEach(function (c) {
+      c.checked = false; estado['hecho:' + c.dataset.paso] = false;
+      var p = document.getElementById(c.dataset.paso);
+      if (p) p.classList.remove('hecho');
+    });
+    escribir(estado); progreso();
+  });
+
+  // ------------------------------------------------------------ copiar
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('.copiar') : null;
+    if (!b) return;
+    var pre = b.parentNode.querySelector('pre');
+    if (!pre) return;
+    var texto = pre.innerText;
+    function ok() {
+      var antes = b.textContent;
+      b.textContent = 'copiado'; b.classList.add('ok');
+      setTimeout(function () { b.textContent = antes; b.classList.remove('ok'); }, 1400);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(ok, seleccionar);
+    } else { seleccionar(); }
+    function seleccionar() {
+      // sin permiso de portapapeles: al menos se lo dejamos seleccionado
+      var r = document.createRange(); r.selectNodeContents(pre);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      b.textContent = 'selecciona y copia';
+      setTimeout(function () { b.textContent = 'copiar'; }, 2200);
+    }
+  });
+
+  // ------------------------------------------------------------ filtros de plano
+  var filtros = Array.prototype.slice.call(document.querySelectorAll('.filtros button'));
+  filtros.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var grupo = b.closest('.filtros');
+      var lista = document.getElementById(grupo.dataset.destino);
+      var tipo = b.dataset.tipo;
+      Array.prototype.forEach.call(grupo.querySelectorAll('button'), function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      Array.prototype.forEach.call(lista.querySelectorAll('.plano'), function (p) {
+        p.hidden = !(tipo === 'todos' || p.dataset.tipo === tipo);
+      });
+    });
+  });
+
+  // ------------------------------------------------------------ formulario
+  var form = document.getElementById('form-replicar');
+  if (form) {
+    var campos = Array.prototype.slice.call(form.querySelectorAll('[name]'));
+    var salidas = Array.prototype.slice.call(
+      document.querySelectorAll('#replicar .prompt pre[data-plantilla]'));
+
+    function valores() {
+      var v = {};
+      campos.forEach(function (c) {
+        v[c.name] = (c.value || '').trim();
+        estado['form:' + c.name] = c.value;
+      });
+      escribir(estado);
+      return v;
+    }
+    function pintar() {
+      var v = valores();
+      salidas.forEach(function (pre) {
+        var t = pre.dataset.plantilla;
+        pre.textContent = t.replace(/\{\{(\w+)\}\}/g, function (m, k) {
+          var val = v[k];
+          if (val) return val;
+          return '[' + k.toUpperCase().replace(/_/g, ' ') + ']';
+        });
+      });
+    }
+    campos.forEach(function (c) {
+      var guardado = estado['form:' + c.name];
+      if (guardado) c.value = guardado;
+      c.addEventListener('input', pintar);
+      c.addEventListener('change', pintar);
+    });
+    pintar();
+  }
+})();
+</script>
+</body>
+</html>
