@@ -97,7 +97,9 @@ def acentos(imagenes: list[Path], n: int = 4) -> list[dict]:
 def analizar(video: str) -> dict:
     dir_an = RAIZ / "analysis" / video
     datos = json.loads((dir_an / "shots.json").read_text())
-    frames = sorted((dir_an / "frames").glob("t_*.png"))
+    # las dos carpetas: el grid da la densidad y los frames de plano la representatividad
+    frames = sorted(list((dir_an / "frames").glob("t_*.png"))
+                    + list((dir_an / "frames_grid").glob("t_*.png")))
     res = {"video": video, "actos": []}
     for nombre, ini, fin in ACTOS[video]:
         del_acto = [f for f in frames if ini <= float(f.stem[2:]) < fin]

@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 
 RAIZ = Path(__file__).resolve().parent.parent
 COLS, CELDA, PAD = 6, 300, 4
+COLORES = 160   # el estilo pintado tiene paleta corta: cuantizar no se nota y pesa un tercio
 
 
 def hoja(imagenes: list[tuple[Path, str]], destino: Path, cols: int = COLS) -> None:
@@ -22,7 +23,7 @@ def hoja(imagenes: list[tuple[Path, str]], destino: Path, cols: int = COLS) -> N
         y = PAD + (i // cols) * (h + PAD + 16)
         lienzo.paste(im, (x, y))
         d.text((x + 2, y + h + 2), etiqueta, fill=(190, 190, 200))
-    lienzo.save(destino, optimize=True)
+    lienzo.quantize(colors=COLORES, method=Image.MEDIANCUT).save(destino, optimize=True)
     print(f"{destino}  {len(imagenes)} celdas  {lienzo.size[0]}x{lienzo.size[1]}")
 
 
@@ -36,10 +37,8 @@ def por_planos(video: str) -> None:
 
 def por_tiempo(video: str) -> None:
     dir_an = RAIZ / "analysis" / video
-    datos = json.loads((dir_an / "shots.json").read_text())
-    reps = {p["frame"] for p in datos["planos"]}
     ims = [(f, f.stem.replace("t_", "") + "s")
-           for f in sorted((dir_an / "frames").glob("t_*.png")) if f.name not in reps]
+           for f in sorted((dir_an / "frames_grid").glob("t_*.png"))]
     hoja(ims, dir_an / "hoja_contacto_tiempo.png")
 
 

@@ -7,8 +7,9 @@ Tres senales se combinan para decidir donde esta cada corte:
   3. cuts_soft.txt  ffmpeg select='gt(scene,0.12)'  -> solo dentro de planos largos, para
                                                        rescatar cortes suaves que 0.25 se salta
 Salida por video:
-  analysis/<video>/frames/t_SS.ss.png   grid cada 0.5 s + frame representativo de cada plano
-  analysis/<video>/shots.json           limites, duracion y frame de cada plano
+  analysis/<video>/frames/t_SS.ss.png       el frame representativo de cada plano
+  analysis/<video>/frames_grid/t_SS.ss.png  un frame cada 0.5 s (fuera de git: se regenera)
+  analysis/<video>/shots.json               limites, duracion y frame de cada plano
 No consulta ninguna API: solo ffmpeg local sobre los archivos de ref/.
 """
 import json, subprocess
@@ -84,7 +85,9 @@ def procesar(nombre: str) -> dict:
     mp4 = RAIZ / "ref" / f"{nombre}.mp4"
     dir_an = RAIZ / "analysis" / nombre
     dir_fr = dir_an / "frames"
+    dir_gr = dir_an / "frames_grid"
     dir_fr.mkdir(parents=True, exist_ok=True)
+    dir_gr.mkdir(parents=True, exist_ok=True)
 
     dur = duracion(mp4)
     lim = limites_de(nombre, dur)
@@ -115,9 +118,11 @@ def procesar(nombre: str) -> dict:
             "negro": any(a - 0.05 <= ini and fin <= b + 0.05 for a, b in negros),
         })
 
+    # El grid es material de analisis y se regenera en segundos desde ref/, asi que vive
+    # aparte y no entra en git: son 244 PNG.
     t = 0.0
     while t < dur - 0.1:
-        sacar_frame(mp4, t, dir_fr / f"t_{t:05.2f}.png", ANCHO_GRID)
+        sacar_frame(mp4, t, dir_gr / f"t_{t:05.2f}.png", ANCHO_GRID)
         t += 0.5
 
     datos = {"video": nombre, "duracion": round(dur, 2), "fps": 30, "resolucion": "1276x718",

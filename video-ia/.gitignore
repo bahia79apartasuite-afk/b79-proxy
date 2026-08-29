@@ -6,3 +6,4 @@ __pycache__/
 salida/
 assets/frames/*.png
 guia/_capturas/
+analysis/*/frames_grid/
