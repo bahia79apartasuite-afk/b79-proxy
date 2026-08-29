@@ -210,10 +210,17 @@ input[type=password],input[type=text],input[type=time],input[type=number],select
 // según el origen desde el que se esté sirviendo.
 const JS_NAV = `
 (function(){
-  var RUTAS = {
+  // Sitio propio del personal: rutas cortas desde la raíz.
+  var CORTAS = {
+    inicio:'/', aseo:'/aseo', facturacion:'/facturacion',
+    jacuzzi:'/jacuzzi', cajamenor:'/caja-menor'
+  };
+  // Rutas viejas, por si alguien entra por un enlace del sitio anterior.
+  var LARGAS = {
     inicio:'/b79', aseo:'/b79-aseo', facturacion:'/b79-facturacion',
     jacuzzi:'/b79-jacuzzi', cajamenor:'/b79-caja-menor'
   };
+  var RUTAS = location.pathname.indexOf('/b79') === 0 ? LARGAS : CORTAS;
   var q = new URLSearchParams(location.search);
   var directo = location.hostname.indexOf('onrender.com') !== -1 ||
                 location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -222,7 +229,7 @@ const JS_NAV = `
     var p = a.getAttribute('data-page');
     a.href = directo
       ? '?action=html&page=' + p + (api ? '&api=' + encodeURIComponent(api) : '')
-      : (RUTAS[p] || '/b79');
+      : (RUTAS[p] || RUTAS.inicio);
   });
 })();
 `;
