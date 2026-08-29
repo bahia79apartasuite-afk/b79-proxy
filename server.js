@@ -1,4 +1,4 @@
-// b79-proxy server.js v9.0 - Two-step session-cookie auth (multipart) for LobbyPMS
+// b79-proxy server.js v9.1 - Two-step session-cookie auth (multipart) for LobbyPMS
 //                          + action=html sirve las paginas operativas (ver pages.js)
 //                          + portada, facturacion, jacuzzi y caja menor
 //                          + clave compartida opcional (B79_CLAVE) en los datos
@@ -61,16 +61,25 @@ function ipDe(req) {
 }
 
 function autorizado(req, query) {
-            // una sesión de usuario abre la puerta por sí sola
+            // 1. Una sesión de usuario abre la puerta por sí sola.
             if (sesionDe(req, query)) return true;
-            // y si no hay clave compartida definida, el proxy queda abierto como antes
-            if (!B79_CLAVE) return true;
-            const enviada = tokenDe(req, query);
-            if (enviada.length !== B79_CLAVE.length) return false;
-            // comparacion de tiempo constante, para no filtrar la clave por lo que tarda
-            let diff = 0;
-            for (let i = 0; i < B79_CLAVE.length; i++) diff |= enviada.charCodeAt(i) ^ B79_CLAVE.charCodeAt(i);
-            return diff === 0;
+
+            // 2. La clave compartida sigue valiendo si está definida. Sirve para
+            //    consultas manuales y para no romper nada que ya la use.
+            if (B79_CLAVE) {
+                            const enviada = tokenDe(req, query);
+                            if (enviada.length !== B79_CLAVE.length) return false;
+                            // comparacion de tiempo constante, para no filtrar la clave por lo que tarda
+                            let diff = 0;
+                            for (let i = 0; i < B79_CLAVE.length; i++) diff |= enviada.charCodeAt(i) ^ B79_CLAVE.charCodeAt(i);
+                            return diff === 0;
+            }
+
+            // 3. Sin clave compartida: si el sistema ya tiene cuentas, los datos de
+            //    huéspedes exigen sesión. Sin base de datos no hay forma de tener
+            //    cuenta, así que ahí se mantiene el comportamiento antiguo y el
+            //    proxy queda abierto, para no dejar el hotel sin herramientas.
+            return !db.HAY_BASE;
 }
 
 const CORS_HEADERS = {
@@ -276,7 +285,7 @@ async function handleAction(action, query) {
                             return { ok: true, ip: r.body };
             }
             if (action === 'debug') {
-                            return { ok: true, version: '9.0', login: !!SESSION_COOKIES, clave_activa: !!B79_CLAVE, base_de_datos: db.HAY_BASE, secreto_efimero: auth.SECRETO_EFIMERO, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
+                            return { ok: true, version: '9.1', login: !!SESSION_COOKIES, clave_activa: !!B79_CLAVE, base_de_datos: db.HAY_BASE, secreto_efimero: auth.SECRETO_EFIMERO, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
             }
             if (action === 'pwd_check') {
                             return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
@@ -530,4 +539,4 @@ const server = http.createServer(async (req, res) => {
             }
 });
 
-server.listen(PORT, () => console.log('b79-proxy v9.0 listening on', PORT));
+server.listen(PORT, () => console.log('b79-proxy v9.1 listening on', PORT));
