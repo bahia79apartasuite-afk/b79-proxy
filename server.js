@@ -328,6 +328,13 @@ async function handleAction(action, query) {
 async function handleIdentidad(action, req, query) {
             const sesion = sesionDe(req, query);
 
+            if (action === 'hay_usuarios') {
+                            if (!db.HAY_BASE) return { estado: 200, cuerpo: { ok: true, base: false, hay: false } };
+                            const r = await db.contarUsuarios();
+                            if (!r.ok) return { estado: 500, cuerpo: { ok: false, error: r.error } };
+                            return { estado: 200, cuerpo: { ok: true, base: true, hay: r.hay } };
+            }
+
             if (action === 'yo') {
                             if (!sesion) return { estado: 401, cuerpo: { ok: false, error: 'sin_sesion' } };
                             return { estado: 200, cuerpo: { ok: true, usuario: {

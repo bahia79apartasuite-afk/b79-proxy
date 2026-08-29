@@ -555,8 +555,8 @@ function paginaEntrar() {
 <div class="acceso-pantalla">
   <div class="acceso-caja">
     <div class="acceso-marca">
-      <div class="n">Bahía 79 Apartasuite</div>
-      <div class="s">Sistema interno de operación</div>
+      <div class="n" id="titulo-acceso">Bahía 79 Apartasuite</div>
+      <div class="s" id="bajada-acceso">Sistema interno de operación</div>
     </div>
     <form class="tarjeta" id="entrar" autocomplete="on">
       <div class="campo">
@@ -581,45 +581,98 @@ ${JS_COMUN}
 
   var $error = document.getElementById('error');
   var $boton = document.getElementById('boton');
+  var $forma = document.getElementById('entrar');
+  var primeraVez = false;
 
   // Si ya hay sesión válida, no tiene sentido volver a pedirla.
   if(leerToken()){
     llamar('yo').then(function(){ location.href = window.B79_RUTA('panel'); }).catch(function(){ olvidarToken(); });
   }
 
+  // Sistema recién instalado: en vez de mandar a nadie a una terminal, la
+  // primera cuenta se crea aquí. La puerta se cierra sola en cuanto existe.
+  llamar('hay_usuarios').then(function(j){
+    if(!j.base){
+      $error.textContent = 'El sistema todavía no tiene base de datos configurada.';
+      $boton.disabled = true;
+      return;
+    }
+    if(j.hay) return;
+    primeraVez = true;
+    document.getElementById('titulo-acceso').textContent = 'Crea la cuenta de administración';
+    document.getElementById('bajada-acceso').textContent =
+      'Este sistema todavía no tiene dueño. La cuenta que crees ahora será la primera, y desde ella podrás dar de alta al resto.';
+    var extra = document.createElement('div');
+    extra.className = 'campo';
+    extra.innerHTML = '<label for="nombre">Tu nombre completo</label>' +
+      '<input type="text" id="nombre" autocomplete="name" required>';
+    $forma.insertBefore(extra, $forma.firstElementChild);
+    document.getElementById('clave').setAttribute('autocomplete','new-password');
+    document.querySelector('label[for=clave]').textContent = 'Contraseña (mínimo 8 caracteres)';
+    $boton.textContent = 'Crear mi cuenta';
+  }).catch(function(){});
+
   var MENSAJES = {
     usuario_o_clave_incorrectos: 'Usuario o contraseña incorrectos.',
     faltan_datos: 'Escribe tu usuario y tu contraseña.',
     sin_base_de_datos: 'El sistema todavía no tiene base de datos configurada.',
-    usa_post: 'Error interno al enviar el formulario.'
+    usa_post: 'Error interno al enviar el formulario.',
+    ya_hay_usuarios: 'El sistema ya tiene cuentas. Entra con la tuya.',
+    usuario_invalido: 'El usuario debe tener entre 3 y 32 letras, números, punto, guion o guion bajo.',
+    clave_muy_corta: 'La contraseña necesita al menos 8 caracteres.'
   };
 
   document.getElementById('entrar').addEventListener('submit', function(ev){
     ev.preventDefault();
     $error.textContent = '';
     $boton.disabled = true;
-    $boton.textContent = 'Entrando…';
+    $boton.textContent = primeraVez ? 'Creando…' : 'Entrando…';
 
-    fetch(SISTEMA + '/?action=entrar', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        usuario: document.getElementById('usuario').value.trim(),
-        clave: document.getElementById('clave').value
-      })
-    }).then(function(r){ return r.json().catch(function(){ return null; }); })
-      .then(function(j){
+    var usuario = document.getElementById('usuario').value.trim();
+    var clave = document.getElementById('clave').value;
+    var etiqueta = primeraVez ? 'Crear mi cuenta' : 'Entrar';
+
+    // Se avisa aquí, en español, en vez de dejar que el navegador muestre su
+    // propio mensaje en el idioma que tenga configurado.
+    if(primeraVez && clave.length < 8){
+      $error.textContent = MENSAJES.clave_muy_corta;
+      $boton.disabled = false; $boton.textContent = etiqueta;
+      return;
+    }
+
+    function restaurar(){ $boton.disabled = false; $boton.textContent = etiqueta; }
+
+    function enviar(accion, cuerpo){
+      return fetch(SISTEMA + '/?action=' + accion, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(cuerpo)
+      }).then(function(r){ return r.json().catch(function(){ return null; }); });
+    }
+
+    var paso = primeraVez
+      ? enviar('primer_admin', {
+          usuario: usuario, clave: clave,
+          nombre: document.getElementById('nombre').value.trim()
+        }).then(function(j){
+          if(!j || !j.ok) throw new Error((j && j.error) || 'fallo');
+          // recién creada, se entra con ella
+          return enviar('entrar', { usuario: usuario, clave: clave });
+        })
+      : enviar('entrar', { usuario: usuario, clave: clave });
+
+    paso.then(function(j){
         if(!j || !j.ok){
           $error.textContent = MENSAJES[j && j.error] || 'No se pudo entrar. Intenta de nuevo.';
-          $boton.disabled = false; $boton.textContent = 'Entrar';
+          restaurar();
           return;
         }
         guardarToken(j.token);
         location.href = window.B79_RUTA('panel');
       })
-      .catch(function(){
-        $error.textContent = 'Sin conexión con el sistema.';
-        $boton.disabled = false; $boton.textContent = 'Entrar';
+      .catch(function(e){
+        $error.textContent = MENSAJES[e.message] || 'Sin conexión con el sistema.';
+        restaurar();
       });
   });
 })();

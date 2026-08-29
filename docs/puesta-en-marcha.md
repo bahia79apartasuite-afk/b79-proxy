@@ -36,18 +36,16 @@ nunca la ve, porque el servidor es el único que habla con Supabase.
 
 ## 3. Crear tu propia cuenta
 
-Una sola vez, desde tu computador. Abre una terminal y ejecuta:
+Sin terminal. Abre la dirección del sistema en el navegador: como todavía no existe
+ninguna cuenta, la pantalla de acceso se convierte sola en un formulario de alta que dice
+*"Este sistema todavía no tiene dueño"*. Escribe tu nombre, un usuario y una contraseña de
+al menos 8 caracteres, y entras directo.
 
-```
-curl -X POST "https://b79-proxy.onrender.com/?action=primer_admin" \
-  -H "Content-Type: application/json" \
-  -d '{"usuario":"deibys","nombre":"Tu Nombre","clave":"la-que-elijas-larga"}'
-```
+Esa puerta **sólo funciona mientras no exista ningún usuario**. En cuanto creas la primera
+cuenta se cierra sola: el siguiente que abra la página ve el acceso normal. Por eso conviene
+hacerlo tú, y hacerlo primero.
 
-Esa puerta **sólo funciona mientras no exista ningún usuario**. En cuanto se crea el
-primero se cierra sola, así que nadie más puede usarla para colarse.
-
-A partir de ahí entras por la web y das de alta al resto desde **Usuarios**.
+A partir de ahí das de alta al resto desde **Usuarios**.
 
 ## 4. Sitio del personal
 
