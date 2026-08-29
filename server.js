@@ -450,7 +450,9 @@ async function altaUsuario(cuerpo, rol, req, sesion) {
             const nombre = String(cuerpo.nombre || '').trim();
             const clave = String(cuerpo.clave || '');
             if (!usuario || !nombre) return { estado: 400, cuerpo: { ok: false, error: 'faltan_datos' } };
-            if (!/^[a-z0-9._-]{3,32}$/.test(usuario)) return { estado: 400, cuerpo: { ok: false, error: 'usuario_invalido' } };
+            // Se admite un correo como nombre de acceso: mucha gente prefiere ese.
+            // Lo que no se admite son espacios, que causan errores al escribirlo.
+            if (!/^[a-z0-9._+@-]{3,64}$/.test(usuario)) return { estado: 400, cuerpo: { ok: false, error: 'usuario_invalido' } };
             if (clave.length < 8) return { estado: 400, cuerpo: { ok: false, error: 'clave_muy_corta' } };
 
             const { sal, hash } = auth.hashearClave(clave);

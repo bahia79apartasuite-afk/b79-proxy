@@ -618,8 +618,8 @@ ${JS_COMUN}
     sin_base_de_datos: 'El sistema todavía no tiene base de datos configurada.',
     usa_post: 'Error interno al enviar el formulario.',
     ya_hay_usuarios: 'El sistema ya tiene cuentas. Entra con la tuya.',
-    usuario_invalido: 'El usuario debe tener entre 3 y 32 letras, números, punto, guion o guion bajo.',
-    clave_muy_corta: 'La contraseña necesita al menos 8 caracteres.'
+    usuario_invalido: 'El USUARIO no sirve: usa entre 3 y 64 caracteres, sin espacios. Vale un correo.',
+    clave_muy_corta: 'La CONTRASEÑA necesita al menos 8 caracteres.'
   };
 
   document.getElementById('entrar').addEventListener('submit', function(ev){
@@ -822,7 +822,7 @@ ${JS_COMUN}
 
   var MENSAJES = {
     usuario_ya_existe: 'Ese usuario ya está tomado.',
-    usuario_invalido: 'El usuario debe tener entre 3 y 32 letras, números, punto, guion o guion bajo.',
+    usuario_invalido: 'El USUARIO no sirve: usa entre 3 y 64 caracteres, sin espacios. Vale un correo.',
     clave_muy_corta: 'La contraseña necesita al menos 8 caracteres.',
     faltan_datos: 'Faltan el nombre o el usuario.',
     no_puedes_desactivarte: 'No puedes desactivar tu propia cuenta.'
