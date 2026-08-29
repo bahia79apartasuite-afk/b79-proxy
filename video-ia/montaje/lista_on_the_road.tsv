@@ -1,0 +1,33 @@
+# Montaje de on_the_road — generado por tools/generar_lista_montaje.py
+# 28 planos, 39.01 s. NO edites esto a mano:
+# edita analysis/on_the_road/anotaciones.json y vuelve a correr el generador.
+#
+# tipo	archivo	inicio	duracion	opciones
+clip	clips/01_macro-hamburguesa.mp4	0.89	2.23		# 01 macro — clip de 4s
+clip	clips/02_macro-vaso.mp4	1.58	0.83		# 02 macro — clip de 4s
+clip	clips/03_busto-presentacion.mp4	1.19	1.63		# 03 busto — clip de 4s
+clip	clips/04_amplio-camina-al-coche.mp4	0.30	5.77		# 04 amplio — clip de 6s
+clip	clips/05_busto-mira-al-coche.mp4	1.83	0.33		# 05 busto — clip de 4s
+clip	clips/06_busto-en-el-coche.mp4	1.48	1.03		# 06 busto — clip de 4s
+clip	clips/07_macro-llave.mp4	1.48	1.03		# 07 macro — clip de 4s
+clip	clips/08_macro-tacometro.mp4	1.61	0.77		# 08 macro — clip de 4s
+clip	clips/09_amplio-quemada.mp4	1.53	0.93		# 09 amplio — clip de 4s
+clip	clips/10_amplio-derrape.mp4	1.00	2.00		# 10 amplio — clip de 4s
+clip	clips/11_cenital-circulo.mp4	1.25	1.50		# 11 amplio — clip de 4s
+clip	clips/12_macro-rueda-humo.mp4	1.36	1.27		# 12 macro — clip de 4s
+clip	clips/13_amplio-donuts-lejos.mp4	0.35	4.30		# 13 amplio — clip de 5s
+clip	clips/14_busto-retrovisor.mp4	1.73	0.53		# 14 busto — clip de 4s
+clip	clips/15_amplio-llega-de-frente.mp4	1.60	0.80		# 15 amplio — clip de 4s
+clip	clips/16_amplio-perfil-velocidad.mp4	1.42	1.17		# 16 amplio — clip de 4s
+clip	clips/17_macro-rueda-aleta.mp4	1.48	1.03		# 17 macro — clip de 4s
+clip	clips/18_macro-escapes.mp4	1.56	0.87		# 18 macro — clip de 4s
+clip	clips/19_amplio-adelanta.mp4	1.17	1.67		# 19 amplio — clip de 4s
+clip	clips/20_busto-retrovisor-gorra.mp4	1.70	0.60		# 20 busto — clip de 4s
+clip	clips/21_pov-parabrisas.mp4	1.42	1.17		# 21 POV — clip de 4s
+clip	clips/22_macro-volante.mp4	1.67	0.67		# 22 macro — clip de 4s
+clip	clips/23_macro-rueda-asfalto.mp4	1.83	0.33		# 23 macro — clip de 4s
+clip	clips/24_amplio-frontal-max.mp4	1.75	0.50		# 24 amplio — clip de 4s
+clip	clips/25_cenital-carretera.mp4	1.40	1.20		# 25 amplio — clip de 4s
+clip	clips/26_macro-velocimetro.mp4	1.45	1.10		# 26 macro — clip de 4s
+clip	clips/27_macro-rueda-contraluz.mp4	0.94	2.13		# 27 macro — clip de 4s
+clip	clips/28_amplio-final-al-sol.mp4	1.19	1.61		# 28 amplio — clip de 4s

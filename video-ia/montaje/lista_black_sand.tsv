@@ -1,0 +1,58 @@
+# Montaje de black_sand — generado por tools/generar_lista_montaje.py
+# 53 planos, 75.58 s. NO edites esto a mano:
+# edita analysis/black_sand/anotaciones.json y vuelve a correr el generador.
+#
+# tipo	archivo	inicio	duracion	opciones
+clip	clips/01_busto.mp4	0.42	3.17		# 01 busto — clip de 4s
+clip	clips/02_busto.mp4	1.25	1.50		# 02 busto — clip de 4s
+clip	clips/03_impacto.mp4	1.83	0.33		# 03 impacto — clip de 4s
+clip	clips/04_amplio.mp4	1.80	0.40		# 04 amplio — clip de 4s
+negro	-	-	0.03		# 05 Parpadeo. El negro de 1 frame funciona como un golpe de bate
+negro	-	-	0.10		# 06 Extiende el parpadeo lo justo para que se note.
+clip	clips/07_amplio.mp4	1.17	1.67		# 07 amplio — clip de 4s
+clip	clips/08_busto.mp4	1.72	0.57		# 08 busto — clip de 4s
+clip	clips/09_amplio.mp4	1.23	1.53		# 09 amplio — clip de 4s
+fija	stills/10_impacto.png	-	0.10		# 10 3f — imagen fija, no lo animes
+fija	stills/11_impacto.png	-	0.03		# 11 1f — imagen fija, no lo animes
+fija	stills/12_impacto.png	-	0.07		# 12 2f — imagen fija, no lo animes
+fija	stills/13_impacto.png	-	0.03		# 13 1f — imagen fija, no lo animes
+clip	clips/14_macro.mp4	0.69	2.63		# 14 macro — clip de 4s
+clip	clips/15_amplio.mp4	0.94	2.13		# 15 amplio — clip de 4s
+clip	clips/16_busto.mp4	0.38	4.23		# 16 busto — clip de 5s
+clip	clips/17_busto.mp4	0.70	2.60		# 17 busto — clip de 4s
+clip	clips/18_impacto.mp4	1.29	1.43		# 18 impacto — clip de 4s
+fija	stills/19_impacto.png	-	0.03		# 19 1f — imagen fija, no lo animes
+fija	stills/20_impacto.png	-	0.03		# 20 1f — imagen fija, no lo animes
+fija	stills/21_impacto.png	-	0.07		# 21 2f — imagen fija, no lo animes
+fija	stills/22_impacto.png	-	0.03		# 22 1f — imagen fija, no lo animes
+clip	clips/23_amplio.mp4	0.60	2.80		# 23 amplio — clip de 4s
+clip	clips/24_busto.mp4	0.89	2.23		# 24 busto — clip de 4s
+clip	clips/25_amplio.mp4	0.45	4.10		# 25 amplio — clip de 5s
+clip	clips/26_busto.mp4	0.46	4.07		# 26 busto — clip de 5s
+clip	clips/27_busto.mp4	1.19	1.63		# 27 busto — clip de 4s
+fija	stills/28_titulo.png	-	0.10		# 28 3f — imagen fija, no lo animes
+fija	stills/29_titulo.png	-	0.10		# 29 3f — imagen fija, no lo animes
+fija	stills/30_titulo.png	-	0.10		# 30 3f — imagen fija, no lo animes
+fija	stills/31_titulo.png	-	0.07		# 31 2f — imagen fija, no lo animes
+clip	clips/32_macro.mp4	0.95	2.10		# 32 macro — clip de 4s
+negro	-	-	0.30		# 33 Negro largo: aqui separa secuencias, no golpea.
+clip	clips/34_amplio.mp4	0.33	3.33		# 34 amplio — clip de 4s
+negro	-	-	0.80		# 35 Elipsis. El negro hace de transicion de tiempo.
+clip	clips/36_amplio.mp4	0.30	3.70		# 36 amplio — clip de 4s
+negro	-	-	0.37		# 37 Ultimo negro antes del clímax.
+clip	clips/38_amplio.mp4	0.38	5.23		# 38 amplio — clip de 6s
+clip	clips/39_busto.mp4	0.30	4.53		# 39 busto — clip de 5s
+clip	clips/40_amplio.mp4	1.80	0.40		# 40 amplio — clip de 4s
+clip	clips/41_busto.mp4	0.86	2.27		# 41 busto — clip de 4s
+fija	stills/42_titulo.png	-	0.10		# 42 3f — imagen fija, no lo animes
+fija	stills/43_titulo.png	-	0.03		# 43 1f — imagen fija, no lo animes
+clip	clips/44_titulo.mp4	1.77	0.47		# 44 titulo — clip de 4s
+fija	stills/45_impacto.png	-	0.03		# 45 1f — imagen fija, no lo animes
+clip	clips/46_busto.mp4	1.21	1.57		# 46 busto — clip de 4s
+clip	clips/47_busto.mp4	0.30	4.40		# 47 busto — clip de 5s
+fija	stills/48_macro.png	-	0.10		# 48 3f — imagen fija, no lo animes
+clip	clips/49_titulo.mp4	0.30	3.83		# 49 titulo — clip de 4s
+clip	clips/50_titulo.mp4	1.40	1.20		# 50 titulo — clip de 4s
+clip	clips/51_titulo.mp4	0.97	2.07		# 51 titulo — clip de 4s
+negro	-	-	0.67		# 52 Salida.
+negro	-	-	0.15		# 53 Fin.
