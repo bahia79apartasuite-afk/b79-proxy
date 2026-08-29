@@ -4,3 +4,4 @@ runs/
 .env
 __pycache__/
 salida/
+assets/frames/*.png
