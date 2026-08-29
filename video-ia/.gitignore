@@ -1,0 +1,6 @@
+# los mp4 de referencia son material de trabajo, no codigo
+ref/*.mp4
+runs/
+.env
+__pycache__/
+salida/

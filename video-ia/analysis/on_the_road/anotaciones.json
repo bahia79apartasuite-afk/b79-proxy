@@ -1,0 +1,38 @@
+{
+  "_nota": "Clasificacion hecha a mano mirando analysis/on_the_road/hoja_contacto_planos.png. Los tiempos y duraciones NO se escriben aqui: vienen de shots.json, que los calcula ffmpeg.",
+  "actos": [
+    {"nombre": "1. Diner del desierto", "planos": [1, 4], "idea": "Quien es y donde esta. Se presenta por lo que come, no por lo que dice."},
+    {"nombre": "2. Quemada de rueda y donuts", "planos": [5, 13], "idea": "Que sabe hacer. El coche se convierte en el segundo personaje."},
+    {"nombre": "3. Carretera y velocidad", "planos": [14, 28], "idea": "A donde va. El corte se acelera hasta que solo quedan texturas."}
+  ],
+  "planos": {
+    "1":  {"tipo": "macro",  "camara": "fija, deriva minima", "sujeto": "hamburguesa + boca del personaje", "accion": "muerde la hamburguesa, el queso cede", "transicion": "corte seco", "funcion": "Abrir con textura, no con cara. El espectador entra por el apetito."},
+    "2":  {"tipo": "macro",  "camara": "fija, dolly in muy corto", "sujeto": "vaso de refresco con hielo", "accion": "la mano rodea el vaso, el hielo asienta", "transicion": "corte seco", "funcion": "Segundo inserto: instala el ritual antes de mostrar al hombre."},
+    "3":  {"tipo": "busto",  "camara": "fija, push in lento", "sujeto": "PROTAGONISTA", "accion": "mastica y mira fuera de cuadro, sin prisa", "transicion": "corte seco", "funcion": "Revelacion del personaje. Llega tarde a proposito: ya te importaba."},
+    "4":  {"tipo": "amplio", "camara": "travelling lateral bajo, sigue los pies", "sujeto": "PROTAGONISTA + UBICACION diner", "accion": "camina del diner al coche", "transicion": "corte seco", "funcion": "El plano mas largo del video (5.8 s). Ensena el mundo entero de una vez y deja respirar antes de acelerar."},
+    "5":  {"tipo": "busto",  "camara": "fija, fondo oscuro", "sujeto": "PROTAGONISTA", "accion": "gira la cabeza hacia el coche", "transicion": "corte seco", "funcion": "Pulso corto (0.33 s) que arranca el segundo acto."},
+    "6":  {"tipo": "busto",  "camara": "fija desde el asiento del copiloto", "sujeto": "PROTAGONISTA dentro del coche", "accion": "se acomoda al volante", "transicion": "corte seco", "funcion": "Cambia el mundo: de fuera a dentro. Mismo rostro, nueva luz."},
+    "7":  {"tipo": "macro",  "camara": "macro fija", "sujeto": "PROP llave de contacto", "accion": "la mano gira la llave", "transicion": "corte seco", "funcion": "El gesto de arranque. Un inserto de mano vale mas que un plano del motor."},
+    "8":  {"tipo": "macro",  "camara": "macro fija", "sujeto": "PROP cuadro de instrumentos", "accion": "la aguja del cuentarrevoluciones sube", "transicion": "corte seco", "funcion": "Traduce el sonido en imagen. Aqui es donde el montaje pide musica."},
+    "9":  {"tipo": "amplio", "camara": "fija baja, trasera", "sujeto": "COCHE", "accion": "quemada de rueda parado, humo blanco", "transicion": "corte seco", "funcion": "Primer estallido visual del video."},
+    "10": {"tipo": "amplio", "camara": "panoramica siguiendo el derrape", "sujeto": "COCHE + UBICACION explanada", "accion": "derrapa en circulo entre el humo", "transicion": "corte seco", "funcion": "Ensena la accion completa una sola vez, para poder trocearla despues."},
+    "11": {"tipo": "amplio", "camara": "cenital, rotacion lenta", "sujeto": "COCHE", "accion": "dibuja el circulo de goma quemada", "transicion": "corte seco", "funcion": "Cambio de eje radical. El cenital resetea la vista y evita que el derrape canse."},
+    "12": {"tipo": "macro",  "camara": "fija baja pegada a la rueda", "sujeto": "PROP rueda", "accion": "la rueda gira, el humo pasa", "transicion": "corte seco", "funcion": "Inserto de textura entre dos planos amplios."},
+    "13": {"tipo": "amplio", "camara": "fija larga", "sujeto": "COCHE + UBICACION explanada", "accion": "sigue derrapando, ya pequeno en cuadro", "transicion": "corte seco", "funcion": "Cierra el acto dejando el coche lejos: el ojo descansa 4.3 s antes de la carretera."},
+    "14": {"tipo": "busto",  "camara": "fija sobre el retrovisor interior", "sujeto": "PROTAGONISTA reflejado", "accion": "mira atras un instante", "transicion": "corte seco", "funcion": "Truco de continuidad: el rostro vuelve enmarcado, sin gastar un plano de cara entero."},
+    "15": {"tipo": "amplio", "camara": "fija baja, el coche crece hacia camara", "sujeto": "COCHE + UBICACION carretera", "accion": "llega de frente por la carretera", "transicion": "corte seco", "funcion": "Establece el tercer mundo: mesetas rojas, asfalto, horizonte."},
+    "16": {"tipo": "amplio", "camara": "travelling lateral a la par", "sujeto": "COCHE", "accion": "corre de perfil levantando polvo", "transicion": "corte seco", "funcion": "El plano de velocidad de referencia. Todo lo que viene lo trocea."},
+    "17": {"tipo": "macro",  "camara": "travelling pegado a la carroceria", "sujeto": "PROP rueda y aleta", "accion": "la rueda gira a velocidad", "transicion": "corte seco", "funcion": "Detalle de fabricacion: el logo pintado vende que el coche existe."},
+    "18": {"tipo": "macro",  "camara": "fija trasera", "sujeto": "PROP escapes", "accion": "llamarada azul en los escapes", "transicion": "corte seco", "funcion": "Un color frio en medio de 15 s de naranja. Es el acento que despierta el ojo."},
+    "19": {"tipo": "amplio", "camara": "seguimiento desde atras", "sujeto": "COCHE + trafico", "accion": "adelanta entre un camion y una pickup", "transicion": "corte seco", "funcion": "Mete riesgo: por primera vez hay algo mas en la carretera."},
+    "20": {"tipo": "busto",  "camara": "fija sobre el retrovisor", "sujeto": "PROTAGONISTA reflejado", "accion": "mantiene la mirada al frente", "transicion": "corte seco", "funcion": "Segundo reflejo. Recordar la cara justo antes de que el montaje se vuelva abstracto."},
+    "21": {"tipo": "POV",    "camara": "fija dentro del coche, mirando al parabrisas", "sujeto": "UBICACION carretera", "accion": "la carretera entra bajo el coche", "transicion": "corte seco", "funcion": "Pone al espectador en el asiento. Un POV cada tanto ancla todo lo demas."},
+    "22": {"tipo": "macro",  "camara": "macro fija", "sujeto": "PROP volante y manos", "accion": "las manos corrigen la trayectoria", "transicion": "corte seco", "funcion": "Devuelve el cuerpo al plano sin volver a la cara."},
+    "23": {"tipo": "macro",  "camara": "travelling muy bajo junto a la rueda", "sujeto": "PROP rueda", "accion": "la rueda come asfalto", "transicion": "corte seco", "funcion": "Plano de 10 frames. Aqui empieza la aceleracion del montaje."},
+    "24": {"tipo": "amplio", "camara": "travelling frontal", "sujeto": "COCHE", "accion": "viene de frente a maxima velocidad", "transicion": "corte seco", "funcion": "Golpe de escala en medio de la rafaga."},
+    "25": {"tipo": "amplio", "camara": "cenital alto (dron)", "sujeto": "UBICACION carretera", "accion": "dos coches diminutos en la recta", "transicion": "corte seco", "funcion": "Aire. Sin este plano la rafaga final agota."},
+    "26": {"tipo": "macro",  "camara": "macro fija", "sujeto": "PROP velocimetro", "accion": "la aguja pasa la marca", "transicion": "corte seco", "funcion": "El dato numerico. Cierra lo que abrio el cuentarrevoluciones del plano 8."},
+    "27": {"tipo": "macro",  "camara": "travelling bajo a contraluz", "sujeto": "PROP rueda contra el sol", "accion": "la rueda gira contra el sol bajo", "transicion": "corte seco", "funcion": "Empieza a disolver la imagen en luz: preparacion del final."},
+    "28": {"tipo": "amplio", "camara": "fija, el coche se aleja", "sujeto": "COCHE + UBICACION carretera", "accion": "se va hacia el sol levantando polvo", "transicion": "fundido a negro implicito", "funcion": "Plano final largo (1.6 s). Devuelve la respiracion y cierra."}
+  }
+}
