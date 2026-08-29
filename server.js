@@ -1,6 +1,8 @@
-// b79-proxy server.js v8.1 - Two-step session-cookie auth (multipart) for LobbyPMS
+// b79-proxy server.js v8.2 - Two-step session-cookie auth (multipart) for LobbyPMS
+//                          + action=html sirve las paginas operativas (ver pages.js)
 const http = require('http');
 const https = require('https');
+const { renderPage } = require('./pages');
 
 const LOBBY_USER_NAME = (process.env.LOBBY_USER || 'Hotel Bahia 79 Apartasuite').trim();
 const LOBBY_PASS = (process.env.LOBBY_PASS || '').trim();
@@ -201,12 +203,17 @@ function dedupGuests(arr) {
 
 async function handleAction(action, query) {
             const date = query.date || new Date().toISOString().slice(0, 10);
+            if (action === 'html') {
+                            // Sirve HTML, no JSON. No consulta LobbyPMS: la pagina pide
+                            // sus datos despues, por su cuenta, a ?action=aseo|llegadas|salidas.
+                            return { ok: true, __html: renderPage(query.page) };
+            }
             if (action === 'ip') {
                             const r = await rawRequest({ host: 'api.ipify.org', port: 443, method: 'GET', path: '/?format=json' });
                             return { ok: true, ip: r.body };
             }
             if (action === 'debug') {
-                            return { ok: true, version: '8.1', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
+                            return { ok: true, version: '8.2', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
             }
             if (action === 'pwd_check') {
                             return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
@@ -258,6 +265,15 @@ const server = http.createServer(async (req, res) => {
             const action = query.action || 'debug';
             try {
                             const result = await handleAction(action, query);
+                            if (typeof result.__html === 'string') {
+                                                res.writeHead(200, {
+                                                                        ...CORS_HEADERS,
+                                                                        'Content-Type': 'text/html; charset=utf-8',
+                                                                        'Cache-Control': 'no-store'
+                                                });
+                                                res.end(result.__html);
+                                                return;
+                            }
                             res.writeHead(result.ok ? 200 : 500, CORS_HEADERS);
                             res.end(JSON.stringify(result));
             } catch (e) {
@@ -266,4 +282,4 @@ const server = http.createServer(async (req, res) => {
             }
 });
 
-server.listen(PORT, () => console.log('b79-proxy v8.1 listening on', PORT));
+server.listen(PORT, () => console.log('b79-proxy v8.2 listening on', PORT));

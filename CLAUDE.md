@@ -14,7 +14,13 @@ cookies de sesión y devuelve JSON con CORS abierto.
   `/b79-jacuzzi`, `/b79-caja-menor`)
 - Propiedad LobbyPMS: `14965`
 
-## Arquitectura (todo vive en `server.js`)
+## Arquitectura
+
+`server.js` tiene toda la lógica de datos. `pages.js` tiene sólo HTML: ni credenciales, ni
+login, ni llamadas al PMS. **Para cambiar el diseño de una página, edita `pages.js` y no abras
+`server.js`** — así tocar la interfaz nunca puede romper la autenticación.
+
+### `server.js`
 
 1. `loginLobby()` — login en 4 pasos contra LobbyPMS, todo con `multipart/form-data`:
    `GET /entrar` (cookie inicial) → `POST /entrar/validarhotel` → `POST /entrar/getPropertyUsers`
@@ -26,6 +32,14 @@ cookies de sesión y devuelve JSON con CORS abierto.
    y deduplican por `codigo_reserva`.
 5. `handleAction()` — router de `?action=`.
 
+### `pages.js`
+
+Exporta `renderPage(page)`, que devuelve el HTML de `aseo`, `facturacion`, `jacuzzi` o
+`cajamenor`. Sólo `aseo` está construida; las otras tres devuelven un aviso de "todavía no
+existe". Las páginas no reciben datos incrustados: piden lo suyo por HTTP a
+`?action=aseo|llegadas|salidas`, como cualquier cliente externo. Aceptan `?api=` para apuntar
+a otro origen al probar en local.
+
 ## Acciones disponibles
 
 | `?action=` | Qué hace |
@@ -34,6 +48,7 @@ cookies de sesión y devuelve JSON con CORS abierto.
 | `llegadas` | check-ins del día |
 | `salidas` | check-outs del día |
 | `facturacion` / `all` | los tres, unidos y deduplicados |
+| `html` | sirve una página (`&page=aseo\|facturacion\|jacuzzi\|cajamenor`); no consulta LobbyPMS |
 | `debug` (por defecto) | versión y estado de sesión |
 | `login_test` | fuerza un login limpio |
 | `pwd_check`, `inspect_auth`, `ip` | diagnóstico |
@@ -53,6 +68,12 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
   llames ni compartas su salida salvo que se pida un diagnóstico explícito de esa variable.
 - **Datos de huéspedes**: nombre, identificación, email y teléfono son datos personales.
   No los pegues en commits, issues ni artifacts de ejemplo; usa datos inventados.
+  La página de aseo muestra sólo habitación, nombre, fechas, ocupantes y notas: **no añadas
+  identificación, email ni teléfono**, que el personal de limpieza no necesita.
+- **Tokens**: este repo no valida ningún token. `X-B79-Token` aparece sólo como cabecera
+  permitida en CORS y nada la comprueba. Si algo relacionado con tokens se rompe, el problema
+  está en Netlify o en `bahia79apartasuite.com`, no aquí; no inventes validación de tokens ni
+  toques ese tema sin que se pida.
 - **Sin dependencias nuevas** salvo que se pida: el proyecto corre con Node puro a propósito.
 - **Un cambio a la vez**: cuando algo se rompe, aísla el paso concreto que falla antes de
   cambiar nada.
@@ -65,8 +86,8 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
 Cambios en `server.js` probados contra el proxy en vivo (o con `node server.js` local +
 `curl`), commit descriptivo, y un resumen de una línea de qué endpoint cambió y cómo verificarlo.
 
-## Cabo suelto conocido
+## Estado de las páginas
 
-`_redirects` apunta a `?action=html&page=...`, pero `handleAction()` no implementa `html`:
-esas cuatro rutas responden `unknown_action`. Queda anotado como contexto; no lo arregles
-por iniciativa propia.
+`_redirects` manda las cuatro rutas a `?action=html&page=...`, que ya funciona (v8.2).
+`aseo` está construida; `facturacion`, `jacuzzi` y `cajamenor` muestran un aviso de pendiente
+hasta que se pidan.
