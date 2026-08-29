@@ -10,7 +10,7 @@
 
 const { renderPage } = require('../pages');
 
-const PAGINAS = ['inicio', 'aseo', 'facturacion', 'jacuzzi', 'cajamenor'];
+const PAGINAS = ['entrar', 'panel', 'aseo', 'facturacion', 'jacuzzi', 'cajamenor', 'usuarios', 'historial'];
 let malos = 0;
 
 for (const pagina of PAGINAS) {

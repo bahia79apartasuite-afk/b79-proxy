@@ -16,7 +16,7 @@ cookies de sesión y devuelve JSON con CORS abierto.
 
 ## Arquitectura
 
-`server.js` tiene toda la lógica de datos. `pages.js` tiene sólo HTML: ni credenciales, ni
+`pages.js` tiene sólo HTML: ni credenciales, ni
 login, ni llamadas al PMS. **Para cambiar el diseño de una página, edita `pages.js` y no abras
 `server.js`** — así tocar la interfaz nunca puede romper la autenticación.
 
@@ -92,6 +92,7 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
 
 ```
 node pruebas/js-valido.js      # que el JS del cliente parsee (rápido, sin navegador)
+node pruebas/supabase-falso.js # cuentas e historial en memoria, en el 4001
 node server.js                 # el proxy, en el 3000
 node pruebas/api-falsa.js      # datos inventados, en el 3001
 ```
@@ -114,6 +115,19 @@ de qué cambió y cómo verificarlo. Para las páginas, pruébalas en un navegad
 una API falsa con datos inventados (nunca de huéspedes reales) y **mira la captura**: un test
 en verde con la pantalla rota no prueba nada.
 
+## Cuentas, roles e historial
+
+Cada persona entra con su usuario y contraseña. Al entrar recibe un token firmado que el
+navegador guarda y manda en `X-B79-Token`. Dos roles: `admin` ve todo y da de alta gente;
+`personal` ve las cuatro herramientas operativas. **El rol se comprueba en el servidor**,
+no sólo escondiendo el menú.
+
+- Contraseñas con `scrypt` y sal por usuario; nunca se guardan en claro.
+- El alta del primer admin (`primer_admin`) sólo funciona con la tabla vacía.
+- Todo queda en el historial: ingresos, fallos, altas, bajas y consultas. En el detalle
+  van la fecha consultada y cuántos resultados salieron, **jamás quiénes son**.
+- Puesta en marcha completa en `docs/puesta-en-marcha.md`.
+
 ## Clave compartida
 
 `B79_CLAVE` en Render activa una clave para los endpoints con datos de huéspedes
@@ -130,12 +144,20 @@ Quedan abiertos `html`, `debug` e `ip`, que no llevan datos.
 
 ## Dos trampas de este código
 
-1. **`\n` dentro de un template literal.** El HTML se genera con template literals, así que
+1. **`?api=` desvía datos, nunca la sesión.** Las páginas piden los datos de huéspedes a
+   `API` (desviable con `?api=` para probar con datos inventados) y todo lo de identidad a
+   `SISTEMA`, que siempre es el proxy. Mezclarlos rompe el acceso al servir desde Netlify,
+   donde `location.origin` es el dominio del front y no el del proxy.
+2. **`\n` dentro de un template literal.** El HTML se genera con template literals, así que
    `\n` escrito en el JS del cliente se convierte en un salto de línea de verdad. Dentro de
    una expresión regular eso es un error de sintaxis y **mata el script entero en silencio**:
    la página carga y no hace nada. Hay que escribir `\\n`. Corre `node pruebas/js-valido.js`
    después de tocar cualquier `<script>`.
-2. **Los enlaces entre páginas nunca son relativos** (ver arriba, `JS_NAV`).
+3. **Los enlaces entre páginas nunca son relativos** (ver arriba, `JS_NAV`).
+4. **La paleta de categorías está validada para daltonismo.** Salidas, llegadas y en casa
+   usan naranja, azul y morado, no rojo/verde/ámbar: esa combinación daba ΔE 3.2 en
+   deuteranopia, o sea indistinguible. Si cambias un color, pásalo por el validador de la
+   guía de visualización antes de subirlo.
 
 ## Estado de las páginas
 
