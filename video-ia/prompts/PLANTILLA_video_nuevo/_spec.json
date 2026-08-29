@@ -1,0 +1,22 @@
+{
+  "_nota": "Rellena una entrada por plano. Los numeros tienen que coincidir con los de analysis/<video>/anotaciones.json y shots.json. Despues: python3 tools/generar_prompts.py",
+  "estilo": "PON_AQUI_EL_NOMBRE_DEL_VIDEO_CUYO_STYLE_MD_USAS",
+  "planos": {
+    "1": {
+      "slug": "pon-un-slug-corto-con-guiones",
+      "refs": ["characters/mi_personaje", "locations/mi_ubicacion", "props/mi_prop"],
+      "encuadre": "[ENCUADRE] en ingles: tipo de plano, desde donde y a que altura, que entra en cuadro, que hay al fondo y como de desenfocado, de donde viene la luz. Es la ACCION CONGELADA: describe el instante, no el movimiento.",
+      "accion": "[ACCION] en ingles, UNA sola cosa que pasa, descrita como una toma continua. Nada de 'y luego'.",
+      "camara": "un termino de prompts/BANCO_CAMARA.md, sin punto final",
+      "sfx": "dos o tres sonidos concretos separados por comas"
+    },
+    "2": {
+      "slug": "",
+      "refs": [],
+      "encuadre": "",
+      "accion": "",
+      "camara": "",
+      "sfx": ""
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# Pega aqui el element_id que te devuelva show_reference_elements (action: create).
+# Formato: un UUID por linea, con un comentario de que es.
+# ejemplo:
+# 3f9c1a20-....-....  el-conductor          (realista, planchas 1-6)
+# 8b21d4f7-....-....  el-conductor-vineta   (version de comic, si la hay)
