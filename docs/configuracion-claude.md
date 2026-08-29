@@ -15,12 +15,15 @@ tu cuenta; abajo está listo para copiar y pegar.
 | 3 — Instrucción maestra del proyecto | `CLAUDE.md` |
 | 5 — Prompt de delegación guardado | `/delegar` (`.claude/commands/delegar.md`) |
 | 3 — Prompt de arquitecto de proyecto | `/instruccion-proyecto` |
-| 7 — Primera Skill | `/verificar-proxy` (`.claude/skills/verificar-proxy/`) |
+| 7 — Primera Skill | pendiente: el candidato obvio (diagnosticar el proxy) queda descartado por decisión tuya; hay que elegir otro proceso |
 | Bonus — Estilo de trabajo | reglas al final de `CLAUDE.md` + permisos en `.claude/settings.json` |
 
-Cómo se usan: escribe `/delegar arregla las rutas de _redirects` o `/verificar-proxy` en
-Claude Code y se cargan solos. La Skill también se activa sola cuando describes un síntoma
-("la página de aseo no carga huéspedes").
+Cómo se usan: escribe `/delegar <tarea>` o `/instruccion-proyecto <proyecto>` en Claude Code
+y se cargan solos.
+
+**Límite explícito:** LobbyPMS y el proxy en vivo están fuera del alcance de Claude. La regla
+está escrita en `CLAUDE.md` y reforzada en `.claude/settings.json`, que bloquea `curl` y
+`wget`. Si algún día quieres levantar ese límite, se quita esa regla — no antes.
 
 ---
 
@@ -97,6 +100,6 @@ explicárselo todo otra vez?
 
 ## Siguiente nivel
 
-No configures todo hoy. Elige **un** proceso que hoy te quite tiempo — el reporte diario de
-aseo, la respuesta a reservas — y conviértelo en Skill como se hizo con `/verificar-proxy`.
-Después repite.
+No configures todo hoy. Elige **un** proceso que hoy te quite tiempo y que no dependa de
+LobbyPMS — la respuesta a reservas, el cierre de caja menor, el guion de un carrusel — y
+conviértelo en Skill. Después repite.

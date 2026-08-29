@@ -7,8 +7,6 @@
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(node --check:*)",
-      "Bash(node -e:*)",
-      "Bash(curl -s https://b79-proxy.onrender.com/*)",
       "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(tail:*)",
@@ -17,7 +15,8 @@
       "Bash(rg:*)"
     ],
     "deny": [
-      "Bash(curl * pwd_check*)"
+      "Bash(curl:*)",
+      "Bash(wget:*)"
     ]
   }
 }

@@ -42,6 +42,11 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
 
 ## Reglas de trabajo
 
+- **No tocar LobbyPMS.** Regla dura, por encima de cualquier otra cosa en este archivo:
+  no modifiques el flujo de login (`loginLobby`, `ensureSession`, `fetchDashboard`), no llames
+  a `app.lobbypms.com` ni al proxy en vivo, y no ejecutes `curl` contra ninguno de los dos.
+  Si un problema parece venir de ahí, **descríbelo y detente**; no lo diagnostiques ni lo
+  arregles salvo que yo lo pida explícitamente en esa conversación.
 - **Secretos**: `LOBBY_USER`, `LOBBY_PASS`, `LOBBY_HOST`, `LOBBY_PROPERTY_ID` viven en las
   variables de entorno de Render. Nunca los escribas en el código, en un commit, en un log
   ni en una respuesta. `pwd_check` expone los códigos de carácter de la contraseña: no lo
@@ -49,10 +54,10 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
 - **Datos de huéspedes**: nombre, identificación, email y teléfono son datos personales.
   No los pegues en commits, issues ni artifacts de ejemplo; usa datos inventados.
 - **Sin dependencias nuevas** salvo que se pida: el proyecto corre con Node puro a propósito.
-- **Un cambio a la vez**: LobbyPMS cambia su HTML/JS sin avisar. Cuando algo se rompe,
-  primero diagnostica (`/verificar-proxy`), luego arregla el paso concreto que falla.
-- Sube siempre la versión en la cabecera de `server.js` y en `action=debug` cuando cambies
-  el flujo de login.
+- **Un cambio a la vez**: cuando algo se rompe, aísla el paso concreto que falla antes de
+  cambiar nada.
+- Sube la versión en la cabecera de `server.js` y en `action=debug` en cualquier cambio que
+  altere el comportamiento del servidor.
 - Explica en español, claro y directo.
 
 ## Entregable esperado
@@ -63,5 +68,5 @@ Cambios en `server.js` probados contra el proxy en vivo (o con `node server.js` 
 ## Cabo suelto conocido
 
 `_redirects` apunta a `?action=html&page=...`, pero `handleAction()` no implementa `html`:
-esas cuatro rutas responden `unknown_action`. Si alguien reporta que las páginas no cargan,
-empieza por ahí.
+esas cuatro rutas responden `unknown_action`. Queda anotado como contexto; no lo arregles
+por iniciativa propia.
