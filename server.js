@@ -1,6 +1,7 @@
-// b79-proxy server.js v8.3 - Two-step session-cookie auth (multipart) for LobbyPMS
+// b79-proxy server.js v8.4 - Two-step session-cookie auth (multipart) for LobbyPMS
 //                          + action=html sirve las paginas operativas (ver pages.js)
-//                          + portada y pagina de facturacion
+//                          + portada, facturacion, jacuzzi y caja menor
+//                          + clave compartida opcional (B79_CLAVE) en los datos
 const http = require('http');
 const https = require('https');
 const { renderPage } = require('./pages');
@@ -10,6 +11,27 @@ const LOBBY_PASS = (process.env.LOBBY_PASS || '').trim();
 const LOBBY_HOST = process.env.LOBBY_HOST || 'app.lobbypms.com';
 const LOBBY_PROPERTY_ID = (process.env.LOBBY_PROPERTY_ID || '14965').trim();
 const PORT = process.env.PORT || 3000;
+// Clave compartida para los endpoints con datos de huespedes.
+// Si esta vacia, el proxy queda abierto como siempre estuvo: asi, desplegar
+// esta version antes de definirla en Render no tumba nada.
+const B79_CLAVE = (process.env.B79_CLAVE || '').trim();
+
+// Acciones que exponen datos de huespedes o diagnostico sensible.
+// Quedan fuera: html (no lleva datos), debug e ip.
+const ACCIONES_PROTEGIDAS = new Set([
+            'aseo', 'in_house', 'llegadas', 'salidas', 'facturacion', 'all',
+            'pwd_check', 'inspect_auth', 'login_test'
+]);
+
+function autorizado(req, query) {
+            if (!B79_CLAVE) return true;
+            const enviada = (req.headers['x-b79-token'] || query.clave || '').trim();
+            if (enviada.length !== B79_CLAVE.length) return false;
+            // comparacion de tiempo constante, para no filtrar la clave por lo que tarda
+            let diff = 0;
+            for (let i = 0; i < B79_CLAVE.length; i++) diff |= enviada.charCodeAt(i) ^ B79_CLAVE.charCodeAt(i);
+            return diff === 0;
+}
 
 const CORS_HEADERS = {
             'Access-Control-Allow-Origin': '*',
@@ -214,7 +236,7 @@ async function handleAction(action, query) {
                             return { ok: true, ip: r.body };
             }
             if (action === 'debug') {
-                            return { ok: true, version: '8.3', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
+                            return { ok: true, version: '8.4', login: !!SESSION_COOKIES, clave_activa: !!B79_CLAVE, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
             }
             if (action === 'pwd_check') {
                             return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
@@ -264,6 +286,11 @@ const server = http.createServer(async (req, res) => {
             const query = {};
             for (const [k, v] of url.searchParams) query[k] = v;
             const action = query.action || 'debug';
+            if (ACCIONES_PROTEGIDAS.has(action) && !autorizado(req, query)) {
+                            res.writeHead(401, CORS_HEADERS);
+                            res.end(JSON.stringify({ ok: false, error: 'clave_requerida' }));
+                            return;
+            }
             try {
                             const result = await handleAction(action, query);
                             if (typeof result.__html === 'string') {
@@ -283,4 +310,4 @@ const server = http.createServer(async (req, res) => {
             }
 });
 
-server.listen(PORT, () => console.log('b79-proxy v8.3 listening on', PORT));
+server.listen(PORT, () => console.log('b79-proxy v8.4 listening on', PORT));

@@ -35,7 +35,7 @@ login, ni llamadas al PMS. **Para cambiar el diseño de una página, edita `page
 ### `pages.js`
 
 Exporta `renderPage(page)`, que devuelve el HTML de `inicio` (portada), `aseo`,
-`facturacion`, `jacuzzi` o `cajamenor`. Las dos últimas muestran un aviso de pendiente.
+`facturacion`, `jacuzzi` o `cajamenor`.
 Las páginas no reciben datos incrustados: piden lo suyo por HTTP a
 `?action=aseo|llegadas|salidas|facturacion`, como cualquier cliente externo. Aceptan `?api=`
 para apuntar a otro origen al probar en local.
@@ -55,7 +55,7 @@ proxy directo).
 | `llegadas` | check-ins del día |
 | `salidas` | check-outs del día |
 | `facturacion` / `all` | los tres, unidos y deduplicados |
-| `html` | sirve una página (`&page=aseo\|facturacion\|jacuzzi\|cajamenor`); no consulta LobbyPMS |
+| `html` | sirve una página (`&page=inicio\|aseo\|facturacion\|jacuzzi\|cajamenor`); no consulta LobbyPMS |
 | `debug` (por defecto) | versión y estado de sesión |
 | `login_test` | fuerza un login limpio |
 | `pwd_check`, `inspect_auth`, `ip` | diagnóstico |
@@ -91,9 +91,18 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
 ## Probar las páginas sin LobbyPMS
 
 ```
+node pruebas/js-valido.js      # que el JS del cliente parsee (rápido, sin navegador)
 node server.js                 # el proxy, en el 3000
 node pruebas/api-falsa.js      # datos inventados, en el 3001
 ```
+
+Para probar la clave sin tocar el PMS, levanta una segunda pareja:
+```
+PORT=3002 B79_CLAVE=xxx LOBBY_HOST=127.0.0.1 node server.js
+PORT=3003 CLAVE=xxx node pruebas/api-falsa.js
+```
+`LOBBY_HOST=127.0.0.1` es un seguro: si algo se cuela hacia el PMS, falla en local en vez
+de salir a internet.
 Y abre `http://localhost:3000/?action=html&page=aseo&api=http://localhost:3001`.
 El parámetro `?api=` desvía las lecturas a la API falsa, así que puedes rediseñar
 cualquier página sin credenciales, sin internet y sin tocar datos reales.
@@ -105,10 +114,34 @@ de qué cambió y cómo verificarlo. Para las páginas, pruébalas en un navegad
 una API falsa con datos inventados (nunca de huéspedes reales) y **mira la captura**: un test
 en verde con la pantalla rota no prueba nada.
 
+## Clave compartida
+
+`B79_CLAVE` en Render activa una clave para los endpoints con datos de huéspedes
+(`aseo`, `llegadas`, `salidas`, `facturacion`, `pwd_check`, `inspect_auth`, `login_test`).
+Quedan abiertos `html`, `debug` e `ip`, que no llevan datos.
+
+- **Si la variable está vacía, el proxy queda abierto**, exactamente como estaba antes. Eso
+  es a propósito: desplegar esta versión sin definirla no rompe nada.
+- La página pide la clave sola cuando recibe un 401 y la guarda en el dispositivo; no vuelve
+  a pedirla. Se envía en la cabecera `X-B79-Token`, que ya estaba permitida en CORS.
+- Se acepta también por `?clave=` para pruebas manuales, pero **evita esa forma en enlaces
+  que compartas**: queda escrita en el historial y en los logs.
+- La comparación es de tiempo constante. No la cambies por `===` sin pensarlo.
+
+## Dos trampas de este código
+
+1. **`\n` dentro de un template literal.** El HTML se genera con template literals, así que
+   `\n` escrito en el JS del cliente se convierte en un salto de línea de verdad. Dentro de
+   una expresión regular eso es un error de sintaxis y **mata el script entero en silencio**:
+   la página carga y no hace nada. Hay que escribir `\\n`. Corre `node pruebas/js-valido.js`
+   después de tocar cualquier `<script>`.
+2. **Los enlaces entre páginas nunca son relativos** (ver arriba, `JS_NAV`).
+
 ## Estado de las páginas
 
-`inicio` y `aseo` y `facturacion` están construidas. `jacuzzi` y `cajamenor` muestran un
-aviso de pendiente: falta definir qué deben registrar y dónde se guardaría, porque el proxy
-no tiene almacenamiento propio.
+Las cinco están construidas. `aseo` y `facturacion` leen de LobbyPMS. `jacuzzi` y `cajamenor`
+**guardan en el dispositivo** (`localStorage`), porque el proxy no tiene almacenamiento: cada
+teléfono ve lo suyo y nada se sincroniza. Por eso ambas traen exportación a CSV — ese es el
+respaldo. Si algún día hacen falta compartidos, eso necesita una base de datos, no un parche.
 
 `_redirects` cubre `/b79` (portada) y las cuatro rutas, cada una con y sin barra final.

@@ -145,6 +145,8 @@ section.encasa .card{border-left-color:var(--encasa)}
 .acceso .flecha{flex-shrink:0;color:var(--muted);font-size:20px}
 .acceso.aseo{border-left-color:var(--llegada)}
 .acceso.facturacion{border-left-color:var(--salida)}
+.acceso.jacuzzi{border-left-color:var(--encasa)}
+.acceso.cajamenor{border-left-color:var(--ok)}
 .acceso.pendiente{opacity:.6}
 .tag{
   display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;
@@ -162,6 +164,43 @@ section.encasa .card{border-left-color:var(--encasa)}
 .skel{height:74px;background:var(--surface-2);border-radius:12px;margin-bottom:10px;animation:pulso 1.4s ease-in-out infinite}
 @keyframes pulso{0%,100%{opacity:1}50%{opacity:.45}}
 footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
+
+/* formularios */
+.formclave{display:flex;gap:8px;margin-top:14px}
+.formclave input{flex:1}
+input[type=password],input[type=text],input[type=time],input[type=number],select{
+  font:inherit;font-size:16px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;min-height:44px;width:100%;
+}
+.forma{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:14px;margin-bottom:20px;box-shadow:var(--shadow);
+}
+.forma h3{margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px}
+.campo label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.ancho{grid-column:1/-1}
+.forma button[type=submit]{width:100%;background:var(--ok);border-color:var(--ok);color:#fff}
+
+/* chips de estado */
+.chip{
+  border:1px solid var(--line);border-radius:99px;padding:5px 12px;
+  font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--surface);cursor:pointer;min-height:34px;
+}
+.chip[data-estado="reservado"]{color:var(--muted)}
+.chip[data-estado="en uso"]{color:var(--encasa);border-color:var(--encasa)}
+.chip[data-estado="aseado"]{color:var(--ok);border-color:var(--ok)}
+.borrar{
+  flex-shrink:0;background:none;border:none;color:var(--muted);
+  font-size:22px;line-height:1;padding:6px 10px;min-height:38px;cursor:pointer;
+}
+.borrar:hover{color:var(--salida)}
+.acciones{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.acciones button{flex:1;min-width:130px}
+.gasto .concepto{font-size:16px;font-weight:600}
+.saldo-bajo{color:var(--salida)}
 `;
 
 // Los enlaces entre páginas no pueden ser relativos: servidas desde Netlify en
@@ -232,13 +271,87 @@ const JS_COMUN = `
     return p.length === 3 ? p[2] + '/' + p[1] : String(f);
   }
 
+  // ---- clave compartida, guardada en este dispositivo ----
+  var CLAVE_KEY = 'b79-clave';
+  function leerClave(){ try { return localStorage.getItem(CLAVE_KEY) || ''; } catch(e){ return ''; } }
+  function guardarClave(v){ try { localStorage.setItem(CLAVE_KEY, v); } catch(e){} }
+  function olvidarClave(){ try { localStorage.removeItem(CLAVE_KEY); } catch(e){} }
+
+  function pedirClave(destino, alEntrar){
+    destino.innerHTML =
+      '<div class="aviso"><strong>Esta página necesita clave</strong>' +
+      'Pídesela a administración. Se guarda en este dispositivo y no vuelve a pedirse.' +
+      '<form id="fclave" class="formclave">' +
+      '<input type="password" id="iclave" placeholder="Clave" autocomplete="current-password" required>' +
+      '<button type="submit">Entrar</button></form></div>';
+    var f = destino.querySelector('#fclave');
+    f.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      var v = destino.querySelector('#iclave').value.trim();
+      if(!v) return;
+      guardarClave(v);
+      alEntrar();
+    });
+    destino.querySelector('#iclave').focus();
+  }
+
   function traer(accion, fecha){
-    return fetch(API + '/?action=' + accion + '&date=' + encodeURIComponent(fecha), { cache:'no-store' })
-      .then(function(r){ return r.json(); })
+    var cab = {};
+    var c = leerClave();
+    if(c) cab['X-B79-Token'] = c;
+    return fetch(API + '/?action=' + accion + '&date=' + encodeURIComponent(fecha),
+                 { cache:'no-store', headers:cab })
+      .then(function(r){
+        if(r.status === 401){ var e = new Error('clave'); e.clave = true; throw e; }
+        return r.json();
+      })
       .then(function(j){
         if(!j || !j.ok) throw new Error((j && j.error) || 'respuesta inesperada');
         return j.huespedes || [];
       });
+  }
+
+  // ---- guardado local, para las páginas que no tienen datos en el PMS ----
+  function almacen(clave){
+    return {
+      leer: function(){ try { return JSON.parse(localStorage.getItem(clave) || '[]'); } catch(e){ return []; } },
+      guardar: function(v){ try { localStorage.setItem(clave, JSON.stringify(v)); return true; } catch(e){ return false; } }
+    };
+  }
+
+  function csv(filas){
+    return filas.map(function(f){
+      return f.map(function(c){
+        var s = String(c == null ? '' : c);
+        return /[";\\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+      }).join(';');
+    }).join('\\n');
+  }
+
+  function descargarCsv(nombre, texto){
+    try {
+      // el BOM hace que Excel abra bien los acentos
+      var b = new Blob(['\ufeff' + texto], { type:'text/csv;charset=utf-8' });
+      var u = URL.createObjectURL(b);
+      var a = document.createElement('a');
+      a.href = u; a.download = nombre;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); }, 1000);
+      return true;
+    } catch(e){ return false; }
+  }
+
+  function copiar(texto, boton){
+    var previo = boton.textContent;
+    function listo(){ boton.textContent = 'Copiado'; setTimeout(function(){ boton.textContent = previo; }, 1500); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto).then(listo, function(){});
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = texto; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); listo(); } catch(e){}
+    ta.remove();
   }
 
   function marcaHora(){
@@ -273,19 +386,19 @@ function paginaInicio() {
     <span class="txt"><span class="t">Facturaci&oacute;n</span><span class="d">Reservas del d&iacute;a con totales e impuestos</span></span>
     <span class="flecha">&rsaquo;</span>
   </a>
-  <a class="acceso pendiente" data-page="jacuzzi" href="?action=html&amp;page=jacuzzi">
+  <a class="acceso jacuzzi" data-page="jacuzzi" href="?action=html&amp;page=jacuzzi">
     <span class="ico">&#128704;</span>
-    <span class="txt"><span class="t">Jacuzzi</span><span class="d">Control de uso</span><span class="tag">Pendiente</span></span>
+    <span class="txt"><span class="t">Jacuzzi</span><span class="d">Turnos de uso y aseo del d&iacute;a</span></span>
     <span class="flecha">&rsaquo;</span>
   </a>
-  <a class="acceso pendiente" data-page="cajamenor" href="?action=html&amp;page=cajamenor">
+  <a class="acceso cajamenor" data-page="cajamenor" href="?action=html&amp;page=cajamenor">
     <span class="ico">&#128176;</span>
-    <span class="txt"><span class="t">Caja menor</span><span class="d">Registro de gastos</span><span class="tag">Pendiente</span></span>
+    <span class="txt"><span class="t">Caja menor</span><span class="d">Gastos del mes, base y saldo</span></span>
     <span class="flecha">&rsaquo;</span>
   </a>
 </div>
 
-<footer>Los datos vienen de LobbyPMS en tiempo real.</footer>`;
+<footer>Aseo y facturaci&oacute;n leen de LobbyPMS. Jacuzzi y caja menor se guardan en este dispositivo.</footer>`;
   return layout('Bahía 79 · Operación', cuerpo);
 }
 
@@ -445,12 +558,18 @@ ${JS_COMUN}
         $sub.textContent = marcaHora();
       })
       .catch(function(e){
-        $sub.textContent = 'Sin conexi\\u00f3n con el sistema';
-        $cont.innerHTML = '<div class="aviso"><strong>No se pudieron cargar las habitaciones</strong>' +
-          'Revisa la conexi\\u00f3n y vuelve a intentar. Si sigue fallando, av\\u00edsale a administraci\\u00f3n. (' +
-          esc(e.message) + ')</div>';
         $barra.style.width = '0%';
         $cuenta.textContent = '';
+        if(e.clave){
+          $sub.textContent = 'Clave requerida';
+          olvidarClave();
+          pedirClave($cont, cargar);
+          return;
+        }
+        $sub.textContent = 'Sin conexión con el sistema';
+        $cont.innerHTML = '<div class="aviso"><strong>No se pudieron cargar las habitaciones</strong>' +
+          'Revisa la conexión y vuelve a intentar. Si sigue fallando, avísale a administración. (' +
+          esc(e.message) + ')</div>';
       });
   }
 
@@ -571,10 +690,16 @@ ${JS_COMUN}
         $sub.textContent = marcaHora();
       })
       .catch(function(e){
-        $sub.textContent = 'Sin conexi\\u00f3n con el sistema';
         $resumen.innerHTML = '';
-        $cont.innerHTML = '<div class="aviso"><strong>No se pudo cargar la facturaci\\u00f3n</strong>' +
-          'Revisa la conexi\\u00f3n y vuelve a intentar. (' + esc(e.message) + ')</div>';
+        if(e.clave){
+          $sub.textContent = 'Clave requerida';
+          olvidarClave();
+          pedirClave($cont, cargar);
+          return;
+        }
+        $sub.textContent = 'Sin conexión con el sistema';
+        $cont.innerHTML = '<div class="aviso"><strong>No se pudo cargar la facturación</strong>' +
+          'Revisa la conexión y vuelve a intentar. (' + esc(e.message) + ')</div>';
       });
   }
 
@@ -586,6 +711,321 @@ ${JS_COMUN}
 <\/script>`;
 
   return layout('Facturación · Bahía 79', cuerpo);
+}
+
+
+// ---------------------------------------------------------------------------
+// Jacuzzi — turnos de uso del día
+// ---------------------------------------------------------------------------
+
+function paginaJacuzzi() {
+  const cuerpo = `
+<header>
+  <a class="volver" data-page="inicio" href="?action=html&amp;page=inicio">&lsaquo; Inicio</a>
+  <div class="fila">
+    <div style="flex:1;min-width:150px">
+      <h1>Jacuzzi</h1>
+      <div class="sub" id="sub">Turnos del d&iacute;a</div>
+    </div>
+    <input type="date" id="fecha" aria-label="Fecha">
+  </div>
+</header>
+
+<form class="forma" id="alta">
+  <h3>Anotar turno</h3>
+  <div class="campos">
+    <div class="campo"><label for="hora">Hora</label><input type="time" id="hora" required></div>
+    <div class="campo"><label for="hab">Habitaci&oacute;n</label><input type="text" id="hab" list="habs" placeholder="201" required><datalist id="habs"></datalist></div>
+    <div class="campo"><label for="pers">Personas</label><input type="number" id="pers" min="1" max="20" value="2"></div>
+    <div class="campo ancho"><label for="nota">Nota</label><input type="text" id="nota" placeholder="Opcional"></div>
+  </div>
+  <button type="submit">A&ntilde;adir turno</button>
+</form>
+
+<div class="acciones">
+  <button id="csv">Descargar CSV</button>
+  <button id="copiar">Copiar</button>
+</div>
+
+<div id="contenido"></div>
+
+<footer>Los turnos se guardan en este dispositivo, no en LobbyPMS.</footer>
+
+<script>
+(function(){
+  "use strict";
+${JS_COMUN}
+
+  var ESTADOS = ['reservado','en uso','aseado'];
+  var $fecha = document.getElementById('fecha');
+  var $cont = document.getElementById('contenido');
+  var $sub = document.getElementById('sub');
+  var fecha = params.get('date') || hoy();
+  $fecha.value = fecha;
+
+  var caja = almacen('b79-jacuzzi');
+
+  function delDia(){
+    return caja.leer().filter(function(t){ return t.fecha === fecha; })
+      .sort(function(a,b){ return a.hora < b.hora ? -1 : 1; });
+  }
+
+  function pintar(){
+    var lista = delDia();
+    if(!lista.length){
+      $cont.innerHTML = '<div class="vacio">Sin turnos anotados para esta fecha.</div>';
+      $sub.textContent = 'Sin turnos';
+      return;
+    }
+    var aseados = lista.filter(function(t){ return t.estado === 'aseado'; }).length;
+    $sub.textContent = lista.length + (lista.length === 1 ? ' turno' : ' turnos') + ' · ' + aseados + ' aseados';
+    $cont.innerHTML = lista.map(function(t){
+      var meta = [];
+      if(t.personas) meta.push(t.personas + (Number(t.personas) === 1 ? ' persona' : ' personas'));
+      var h = '<article class="card" data-id="' + esc(t.id) + '">';
+      h += '<div class="info">';
+      h += '<div class="hab">' + esc(t.hora) + ' &middot; ' + esc(t.habitacion) + '</div>';
+      if(meta.length) h += '<div class="meta">' + esc(meta.join(" · ")) + '</div>';
+      if(t.nota) h += '<div class="notas">' + esc(t.nota) + '</div>';
+      h += '</div>';
+      h += '<button class="chip" data-estado="' + esc(t.estado) + '" data-accion="estado">' + esc(t.estado) + '</button>';
+      h += '<button class="borrar" data-accion="borrar" aria-label="Borrar">&times;</button>';
+      h += '</article>';
+      return h;
+    }).join('');
+  }
+
+  document.getElementById('alta').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var todos = caja.leer();
+    todos.push({
+      id: 'j' + Date.now(),
+      fecha: fecha,
+      hora: document.getElementById('hora').value,
+      habitacion: document.getElementById('hab').value.trim(),
+      personas: document.getElementById('pers').value,
+      nota: document.getElementById('nota').value.trim(),
+      estado: 'reservado'
+    });
+    caja.guardar(todos);
+    // se limpia lo que cambia turno a turno; personas suele repetirse
+    document.getElementById('hora').value = '';
+    document.getElementById('hab').value = '';
+    document.getElementById('nota').value = '';
+    document.getElementById('hora').focus();
+    pintar();
+  });
+
+  $cont.addEventListener('click', function(ev){
+    var boton = ev.target.closest ? ev.target.closest('[data-accion]') : null;
+    if(!boton) return;
+    var id = boton.closest('.card').getAttribute('data-id');
+    var todos = caja.leer();
+    var i = todos.findIndex(function(t){ return t.id === id; });
+    if(i === -1) return;
+    if(boton.getAttribute('data-accion') === 'borrar'){
+      todos.splice(i,1);
+    } else {
+      var siguiente = (ESTADOS.indexOf(todos[i].estado) + 1) % ESTADOS.length;
+      todos[i].estado = ESTADOS[siguiente];
+    }
+    caja.guardar(todos);
+    pintar();
+  });
+
+  function filas(){
+    var f = [['Fecha','Hora','Habitación','Personas','Estado','Nota']];
+    delDia().forEach(function(t){ f.push([t.fecha,t.hora,t.habitacion,t.personas,t.estado,t.nota]); });
+    return f;
+  }
+  document.getElementById('csv').addEventListener('click', function(){
+    descargarCsv('jacuzzi-' + fecha + '.csv', csv(filas()));
+  });
+  document.getElementById('copiar').addEventListener('click', function(){
+    copiar(csv(filas()), this);
+  });
+
+  $fecha.addEventListener('change', function(){ fecha = $fecha.value || hoy(); pintar(); sugerirHabitaciones(); });
+
+  // Las habitaciones ocupadas salen del PMS, para no escribirlas a mano.
+  // Si no hay clave o no hay conexión, el campo sigue siendo texto libre.
+  function sugerirHabitaciones(){
+    traer('aseo', fecha).then(function(lista){
+      document.getElementById('habs').innerHTML = lista.map(function(h){
+        return '<option value="' + esc(h.habitacion) + '">';
+      }).join('');
+    }).catch(function(){});
+  }
+
+  pintar();
+  sugerirHabitaciones();
+})();
+<\/script>`;
+
+  return layout('Jacuzzi · Bahía 79', cuerpo);
+}
+
+// ---------------------------------------------------------------------------
+// Caja menor — gastos del mes
+// ---------------------------------------------------------------------------
+
+function paginaCajaMenor() {
+  const cuerpo = `
+<header>
+  <a class="volver" data-page="inicio" href="?action=html&amp;page=inicio">&lsaquo; Inicio</a>
+  <div class="fila">
+    <div style="flex:1;min-width:150px">
+      <h1>Caja menor</h1>
+      <div class="sub" id="sub">&nbsp;</div>
+    </div>
+    <input type="month" id="mes" aria-label="Mes">
+  </div>
+</header>
+
+<div class="resumen" id="resumen"></div>
+
+<form class="forma" id="alta">
+  <h3>Anotar gasto</h3>
+  <div class="campos">
+    <div class="campo"><label for="fecha">Fecha</label><input type="date" id="fecha" required></div>
+    <div class="campo"><label for="monto">Monto</label><input type="number" id="monto" min="0" step="100" placeholder="0" required></div>
+    <div class="campo"><label for="cat">Categor&iacute;a</label><select id="cat">
+      <option>Aseo</option><option>Mantenimiento</option><option>Insumos</option>
+      <option>Transporte</option><option>Alimentaci&oacute;n</option><option>Otro</option>
+    </select></div>
+    <div class="campo"><label for="quien">Qui&eacute;n</label><input type="text" id="quien" placeholder="Nombre"></div>
+    <div class="campo ancho"><label for="concepto">Concepto</label><input type="text" id="concepto" placeholder="En qu&eacute; se gast&oacute;" required></div>
+  </div>
+  <button type="submit">A&ntilde;adir gasto</button>
+</form>
+
+<div class="acciones">
+  <button id="base">Fijar base de caja</button>
+  <button id="csv">Descargar CSV</button>
+  <button id="copiar">Copiar</button>
+</div>
+
+<div id="contenido"></div>
+
+<footer>Los gastos se guardan en este dispositivo. Desc&aacute;rgalos para respaldarlos.</footer>
+
+<script>
+(function(){
+  "use strict";
+${JS_COMUN}
+
+  var $mes = document.getElementById('mes');
+  var $cont = document.getElementById('contenido');
+  var $resumen = document.getElementById('resumen');
+  var $sub = document.getElementById('sub');
+
+  var caja = almacen('b79-caja-gastos');
+  var mes = params.get('mes') || hoy().slice(0,7);
+  $mes.value = mes;
+  document.getElementById('fecha').value = hoy();
+
+  var moneda = new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 });
+  function plata(n){ return moneda.format(Number(n)||0); }
+
+  function leerBase(){
+    try { return Number(localStorage.getItem('b79-caja-base')) || 0; } catch(e){ return 0; }
+  }
+  function guardarBase(v){ try { localStorage.setItem('b79-caja-base', String(v)); } catch(e){} }
+
+  function delMes(){
+    return caja.leer().filter(function(g){ return String(g.fecha).slice(0,7) === mes; })
+      .sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+  }
+
+  function cifra(k,v,clase){
+    return '<div class="cifra"><div class="k">' + k + '</div><div class="v' +
+           (clase ? ' ' + clase : '') + '">' + v + '</div></div>';
+  }
+
+  function pintar(){
+    var lista = delMes();
+    var gastado = lista.reduce(function(s,g){ return s + (Number(g.monto)||0); }, 0);
+    var base = leerBase();
+    var saldo = base - gastado;
+
+    $resumen.innerHTML =
+      cifra('Base', plata(base)) +
+      cifra('Gastado', plata(gastado)) +
+      cifra('Saldo', plata(saldo), saldo < 0 ? 'saldo-bajo' : '');
+    $sub.textContent = lista.length + (lista.length === 1 ? ' gasto' : ' gastos') + ' este mes';
+
+    if(!lista.length){
+      $cont.innerHTML = '<div class="vacio">Sin gastos anotados este mes.</div>';
+      return;
+    }
+    $cont.innerHTML = lista.map(function(g){
+      var meta = [g.categoria];
+      if(g.quien) meta.push(g.quien);
+      meta.push(fechaCorta(g.fecha));
+      var h = '<article class="card gasto" data-id="' + esc(g.id) + '">';
+      h += '<div class="info">';
+      h += '<div class="concepto">' + esc(g.concepto) + '</div>';
+      h += '<div class="meta">' + esc(meta.join(" · ")) + '</div>';
+      h += '</div>';
+      h += '<div class="plata"><div class="total">' + plata(g.monto) + '</div></div>';
+      h += '<button class="borrar" data-accion="borrar" aria-label="Borrar">&times;</button>';
+      h += '</article>';
+      return h;
+    }).join('');
+  }
+
+  document.getElementById('alta').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var todos = caja.leer();
+    todos.push({
+      id: 'g' + Date.now(),
+      fecha: document.getElementById('fecha').value,
+      monto: Number(document.getElementById('monto').value) || 0,
+      categoria: document.getElementById('cat').value,
+      quien: document.getElementById('quien').value.trim(),
+      concepto: document.getElementById('concepto').value.trim()
+    });
+    caja.guardar(todos);
+    document.getElementById('monto').value = '';
+    document.getElementById('concepto').value = '';
+    pintar();
+  });
+
+  $cont.addEventListener('click', function(ev){
+    var boton = ev.target.closest ? ev.target.closest('[data-accion="borrar"]') : null;
+    if(!boton) return;
+    var id = boton.closest('.card').getAttribute('data-id');
+    var todos = caja.leer().filter(function(g){ return g.id !== id; });
+    caja.guardar(todos);
+    pintar();
+  });
+
+  document.getElementById('base').addEventListener('click', function(){
+    var v = prompt('Base de caja menor, en pesos:', String(leerBase()));
+    if(v === null) return;
+    guardarBase(Number(v) || 0);
+    pintar();
+  });
+
+  function filas(){
+    var f = [['Fecha','Concepto','Categoría','Quién','Monto']];
+    delMes().forEach(function(g){ f.push([g.fecha,g.concepto,g.categoria,g.quien,g.monto]); });
+    return f;
+  }
+  document.getElementById('csv').addEventListener('click', function(){
+    descargarCsv('caja-menor-' + mes + '.csv', csv(filas()));
+  });
+  document.getElementById('copiar').addEventListener('click', function(){
+    copiar(csv(filas()), this);
+  });
+
+  $mes.addEventListener('change', function(){ mes = $mes.value || hoy().slice(0,7); pintar(); });
+
+  pintar();
+})();
+<\/script>`;
+
+  return layout('Caja menor · Bahía 79', cuerpo);
 }
 
 // ---------------------------------------------------------------------------
@@ -609,10 +1049,8 @@ const PAGINAS = {
   inicio: paginaInicio,
   aseo: paginaAseo,
   facturacion: paginaFacturacion,
-  jacuzzi: () => paginaPendiente('Jacuzzi',
-    'La ruta funciona, pero falta definir qu&eacute; debe registrar: turnos de uso, mantenimiento o cobro.'),
-  cajamenor: () => paginaPendiente('Caja menor',
-    'La ruta funciona, pero falta definir qu&eacute; debe registrar y d&oacute;nde se guardan los gastos.'),
+  jacuzzi: paginaJacuzzi,
+  cajamenor: paginaCajaMenor,
 };
 
 function renderPage(page) {

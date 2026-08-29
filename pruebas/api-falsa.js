@@ -2,13 +2,22 @@
 //
 //   node server.js                 # el proxy, en el 3000
 //   node pruebas/api-falsa.js      # esta API falsa, en el 3001
+//   PORT=3003 CLAVE=xxx node pruebas/api-falsa.js   # otra copia, exigiendo clave
 //   abre: http://localhost:3000/?action=html&page=aseo&api=http://localhost:3001
 //
 // El parámetro ?api= hace que la página lea de aquí en vez de LobbyPMS, así que
 // puedes cambiar el diseño sin credenciales, sin internet y sin datos reales.
 // Los nombres son inventados a propósito: nunca uses huéspedes reales aquí.
 const http = require('http');
-const H = { 'Access-Control-Allow-Origin':'*', 'Content-Type':'application/json' };
+// Los mismos permisos CORS que server.js. Allow-Headers es imprescindible:
+// mandar la clave en X-B79-Token dispara un preflight, y sin esta cabecera el
+// navegador tumba la petición antes de que llegue a leerse el 401.
+const H = {
+  'Access-Control-Allow-Origin':'*',
+  'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers':'Content-Type, Authorization, X-B79-Token',
+  'Content-Type':'application/json',
+};
 const D = {
   salidas: [
     { nombre:'Marta Quiroga',  habitacion:'201', fecha_ingreso:'2026-08-25', fecha_salida:'2026-08-29', adultos:2, ninos:0, notas:'Dejó toallas extra en el baño.', codigo_reserva:'INV-001' },
@@ -35,8 +44,23 @@ D.facturacion = [].concat(D.salidas, D.llegadas, D.aseo).map(h => Object.assign(
   estatus: 'Confirmada',
 }));
 
+// PORT y CLAVE permiten levantar una segunda copia que exija clave, para probar
+// el 401 sin tocar el server real (y por tanto sin que nada salga hacia LobbyPMS).
+const PORT = Number(process.env.PORT) || 3001;
+const CLAVE = (process.env.CLAVE || '').trim();
+
 http.createServer((req,res)=>{
-  const a = new URL(req.url,'http://x').searchParams.get('action');
+  if (req.method === 'OPTIONS') { res.writeHead(204,H); res.end(); return; }
+  const u = new URL(req.url,'http://x');
+  const a = u.searchParams.get('action');
+  if (CLAVE) {
+    const enviada = (req.headers['x-b79-token'] || u.searchParams.get('clave') || '').trim();
+    if (enviada !== CLAVE) {
+      res.writeHead(401,H);
+      res.end(JSON.stringify({ ok:false, error:'clave_requerida' }));
+      return;
+    }
+  }
   res.writeHead(200,H);
   res.end(JSON.stringify({ ok:true, date:'2026-08-29', total:(D[a]||[]).length, huespedes: D[a]||[] }));
-}).listen(3001, ()=>console.log('stub en 3001'));
+}).listen(PORT, ()=>console.log('API falsa en ' + PORT + (CLAVE ? ' (con clave)' : '')));
