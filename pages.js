@@ -2,20 +2,17 @@
 //
 // Este archivo NO toca LobbyPMS: no contiene credenciales, ni el flujo de login,
 // ni llamadas al PMS. Sólo genera HTML. Las páginas leen los datos del propio
-// proxy por HTTP (?action=aseo|llegadas|salidas), igual que lo haría cualquier
-// cliente externo. Editar el diseño de una página nunca debe requerir abrir server.js.
+// proxy por HTTP (?action=aseo|llegadas|salidas|facturacion), igual que lo haría
+// cualquier cliente externo. Editar el diseño de una página nunca debe requerir
+// abrir server.js.
 
 const PROXY_URL_POR_DEFECTO = 'https://b79-proxy.onrender.com';
 
-function layout(titulo, cuerpo) {
-  return `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1a1d">
-<title>${titulo}</title>
-<style>
+// ---------------------------------------------------------------------------
+// Estilos y esqueleto comunes
+// ---------------------------------------------------------------------------
+
+const ESTILOS = `
 :root{
   --ground:#F1F3EF; --surface:#FFFFFF; --surface-2:#E9EDE7;
   --ink:#122629; --muted:#586A67; --line:#D8DED4;
@@ -41,23 +38,31 @@ body{
   padding:0 0 env(safe-area-inset-bottom);
 }
 .wrap{max-width:720px;margin:0 auto;padding:16px 16px 64px}
+a{color:inherit}
 
 /* cabecera */
 header{
   position:sticky;top:0;z-index:10;
   background:var(--ground);
   border-bottom:1px solid var(--line);
-  padding:14px 16px 12px;
+  padding:12px 16px;
   margin:0 -16px 20px;
 }
 .fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:13px;margin-top:2px}
-input[type=date]{
+.volver{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;color:var(--muted);text-decoration:none;
+  margin-bottom:6px;min-height:32px;
+}
+.volver:hover{color:var(--ink)}
+input[type=date],input[type=search]{
   font:inherit;font-size:15px;color:var(--ink);
   background:var(--surface);border:1px solid var(--line);border-radius:10px;
   padding:9px 11px;min-height:44px;
 }
+input[type=search]{width:100%;margin-top:10px}
 button{
   font:inherit;font-weight:600;color:var(--ink);
   background:var(--surface);border:1px solid var(--line);border-radius:10px;
@@ -87,9 +92,10 @@ section.encasa .titulo h2{color:var(--encasa)}
   background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);
   border-radius:12px;padding:14px;margin-bottom:10px;
   box-shadow:var(--shadow);
-  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  -webkit-tap-highlight-color:transparent;
   transition:opacity .2s ease;
 }
+.card.tocable{cursor:pointer}
 section.salidas .card{border-left-color:var(--salida)}
 section.llegadas .card{border-left-color:var(--llegada)}
 section.encasa .card{border-left-color:var(--encasa)}
@@ -109,6 +115,42 @@ section.encasa .card{border-left-color:var(--encasa)}
   display:grid;place-items:center;color:transparent;font-size:17px;font-weight:700;
 }
 .card.lista .check{background:var(--ok);border-color:var(--ok);color:#fff}
+.plata{flex-shrink:0;text-align:right}
+.plata .total{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.plata .imp{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+
+/* resumen de facturación */
+.resumen{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;
+  margin-bottom:24px;
+}
+.cifra{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:14px;box-shadow:var(--shadow);
+}
+.cifra .k{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cifra .v{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* portada */
+.menu{display:grid;gap:12px}
+.acceso{
+  display:flex;align-items:center;gap:16px;text-decoration:none;
+  background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);
+  border-radius:12px;padding:18px;box-shadow:var(--shadow);
+}
+.acceso .ico{font-size:26px;line-height:1;flex-shrink:0}
+.acceso .txt{flex:1;min-width:0}
+.acceso .t{display:block;font-size:17px;font-weight:700;line-height:1.3}
+.acceso .d{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.4}
+.acceso .flecha{flex-shrink:0;color:var(--muted);font-size:20px}
+.acceso.aseo{border-left-color:var(--llegada)}
+.acceso.facturacion{border-left-color:var(--salida)}
+.acceso.pendiente{opacity:.6}
+.tag{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);
+  border:1px solid var(--line);border-radius:99px;padding:2px 8px;margin-top:8px;
+}
 
 /* estados */
 .aviso{
@@ -120,22 +162,144 @@ section.encasa .card{border-left-color:var(--encasa)}
 .skel{height:74px;background:var(--surface-2);border-radius:12px;margin-bottom:10px;animation:pulso 1.4s ease-in-out infinite}
 @keyframes pulso{0%,100%{opacity:1}50%{opacity:.45}}
 footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
-</style>
+`;
+
+// Los enlaces entre páginas no pueden ser relativos: servidas desde Netlify en
+// /b79-aseo/, una URL como "?action=html&page=inicio" resuelve a
+// /b79-aseo/?action=html&page=inicio, que _redirects vuelve a mandar a aseo.
+// Por eso cada enlace lleva data-page y este script le pone el href correcto
+// según el origen desde el que se esté sirviendo.
+const JS_NAV = `
+(function(){
+  var RUTAS = {
+    inicio:'/b79', aseo:'/b79-aseo', facturacion:'/b79-facturacion',
+    jacuzzi:'/b79-jacuzzi', cajamenor:'/b79-caja-menor'
+  };
+  var q = new URLSearchParams(location.search);
+  var directo = location.hostname.indexOf('onrender.com') !== -1 ||
+                location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  var api = q.get('api');
+  Array.prototype.forEach.call(document.querySelectorAll('a[data-page]'), function(a){
+    var p = a.getAttribute('data-page');
+    a.href = directo
+      ? '?action=html&page=' + p + (api ? '&api=' + encodeURIComponent(api) : '')
+      : (RUTAS[p] || '/b79');
+  });
+})();
+`;
+
+function layout(titulo, cuerpo) {
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1a1d">
+<title>${titulo}</title>
+<style>${ESTILOS}</style>
 </head>
 <body>
 <div class="wrap">
 ${cuerpo}
 </div>
+<script>${JS_NAV}<\/script>
 </body>
 </html>`;
 }
 
-function paginaAseo() {
+// Bloque JS común a las páginas que leen datos del proxy.
+const JS_COMUN = `
+  var params = new URLSearchParams(location.search);
+  var esLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  var API = params.get('api') || (esLocal ? location.origin : '${PROXY_URL_POR_DEFECTO}');
+
+  function hoy(){
+    var d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+  }
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function fechaCorta(f){
+    if(!f) return '';
+    var p = String(f).slice(0,10).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] : String(f);
+  }
+
+  function traer(accion, fecha){
+    return fetch(API + '/?action=' + accion + '&date=' + encodeURIComponent(fecha), { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j || !j.ok) throw new Error((j && j.error) || 'respuesta inesperada');
+        return j.huespedes || [];
+      });
+  }
+
+  function marcaHora(){
+    var a = new Date();
+    return 'Actualizado ' + String(a.getHours()).padStart(2,'0') + ':' + String(a.getMinutes()).padStart(2,'0');
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Portada
+// ---------------------------------------------------------------------------
+
+function paginaInicio() {
   const cuerpo = `
 <header>
   <div class="fila">
+    <div>
+      <h1>Bah&iacute;a 79 &middot; Operaci&oacute;n</h1>
+      <div class="sub">Herramientas del d&iacute;a a d&iacute;a</div>
+    </div>
+  </div>
+</header>
+
+<div class="menu">
+  <a class="acceso aseo" data-page="aseo" href="?action=html&amp;page=aseo">
+    <span class="ico">&#129529;</span>
+    <span class="txt"><span class="t">Aseo</span><span class="d">Salidas, llegadas y habitaciones en casa</span></span>
+    <span class="flecha">&rsaquo;</span>
+  </a>
+  <a class="acceso facturacion" data-page="facturacion" href="?action=html&amp;page=facturacion">
+    <span class="ico">&#129534;</span>
+    <span class="txt"><span class="t">Facturaci&oacute;n</span><span class="d">Reservas del d&iacute;a con totales e impuestos</span></span>
+    <span class="flecha">&rsaquo;</span>
+  </a>
+  <a class="acceso pendiente" data-page="jacuzzi" href="?action=html&amp;page=jacuzzi">
+    <span class="ico">&#128704;</span>
+    <span class="txt"><span class="t">Jacuzzi</span><span class="d">Control de uso</span><span class="tag">Pendiente</span></span>
+    <span class="flecha">&rsaquo;</span>
+  </a>
+  <a class="acceso pendiente" data-page="cajamenor" href="?action=html&amp;page=cajamenor">
+    <span class="ico">&#128176;</span>
+    <span class="txt"><span class="t">Caja menor</span><span class="d">Registro de gastos</span><span class="tag">Pendiente</span></span>
+    <span class="flecha">&rsaquo;</span>
+  </a>
+</div>
+
+<footer>Los datos vienen de LobbyPMS en tiempo real.</footer>`;
+  return layout('Bahía 79 · Operación', cuerpo);
+}
+
+// ---------------------------------------------------------------------------
+// Aseo
+// ---------------------------------------------------------------------------
+
+function paginaAseo() {
+  const cuerpo = `
+<header>
+  <a class="volver" data-page="inicio" href="?action=html&amp;page=inicio">&lsaquo; Inicio</a>
+  <div class="fila">
     <div style="flex:1;min-width:150px">
-      <h1>Aseo &middot; Bah&iacute;a 79</h1>
+      <h1>Aseo</h1>
       <div class="sub" id="sub">Cargando&hellip;</div>
     </div>
     <input type="date" id="fecha" aria-label="Fecha">
@@ -156,10 +320,7 @@ function paginaAseo() {
 <script>
 (function(){
   "use strict";
-
-  var params = new URLSearchParams(location.search);
-  var esLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  var API = params.get('api') || (esLocal ? location.origin : '${PROXY_URL_POR_DEFECTO}');
+${JS_COMUN}
 
   var GRUPOS = [
     { clave:'salidas',  accion:'salidas',  titulo:'Salidas',  tarea:'Limpieza a fondo tras el check-out.' },
@@ -172,13 +333,6 @@ function paginaAseo() {
   var $cont = document.getElementById('contenido');
   var $barra = document.getElementById('barra');
   var $cuenta = document.getElementById('cuenta');
-
-  function hoy(){
-    var d = new Date();
-    var m = String(d.getMonth()+1).padStart(2,'0');
-    var dd = String(d.getDate()).padStart(2,'0');
-    return d.getFullYear() + '-' + m + '-' + dd;
-  }
 
   var fecha = params.get('date') || hoy();
   $fecha.value = fecha;
@@ -196,22 +350,8 @@ function paginaAseo() {
     return grupo + ':' + (h.habitacion || '?') + ':' + (h.codigo_reserva || h.nombre || '');
   }
 
-  function esc(s){
-    return String(s == null ? '' : s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;');
-  }
-
-  function fechaCorta(f){
-    if(!f) return '';
-    var p = String(f).slice(0,10).split('-');
-    if(p.length !== 3) return String(f);
-    return p[2] + '/' + p[1];
-  }
-
   function personas(h){
-    var a = Number(h.adultos)||0, n = Number(h.ninos)||0;
-    var t = [];
+    var a = Number(h.adultos)||0, n = Number(h.ninos)||0, t = [];
     if(a) t.push(a + (a===1 ? ' adulto' : ' adultos'));
     if(n) t.push(n + (n===1 ? ' ni\\u00f1o' : ' ni\\u00f1os'));
     return t.join(', ');
@@ -226,7 +366,7 @@ function paginaAseo() {
     if(h.fecha_ingreso || h.fecha_salida){
       meta.push(fechaCorta(h.fecha_ingreso) + ' \\u2192 ' + fechaCorta(h.fecha_salida));
     }
-    var html = '<article class="card' + (lista ? ' lista' : '') + '" data-id="' + esc(id) + '" role="button" tabindex="0">';
+    var html = '<article class="card tocable' + (lista ? ' lista' : '') + '" data-id="' + esc(id) + '" role="button" tabindex="0">';
     html += '<div class="info">';
     html += '<div class="hab">' + esc(h.habitacion || 'Sin habitaci\\u00f3n') + '</div>';
     if(h.nombre) html += '<div class="nombre">' + esc(h.nombre) + '</div>';
@@ -240,8 +380,7 @@ function paginaAseo() {
 
   function pintar(datos){
     var hechas = leerHechas();
-    var html = '';
-    var total = 0, listas = 0;
+    var html = '', total = 0, listas = 0;
 
     GRUPOS.forEach(function(g){
       var lista = datos[g.clave] || [];
@@ -265,17 +404,14 @@ function paginaAseo() {
   }
 
   function actualizarProgreso(total, listas){
-    var pct = total ? Math.round(listas/total*100) : 0;
-    $barra.style.width = pct + '%';
+    $barra.style.width = (total ? Math.round(listas/total*100) : 0) + '%';
     $cuenta.textContent = total
       ? listas + ' de ' + total + ' habitaciones listas'
       : 'Sin habitaciones para esta fecha';
   }
 
   function recontar(){
-    var tarjetas = $cont.querySelectorAll('.card');
-    var listas = $cont.querySelectorAll('.card.lista');
-    actualizarProgreso(tarjetas.length, listas.length);
+    actualizarProgreso($cont.querySelectorAll('.card').length, $cont.querySelectorAll('.card.lista').length);
   }
 
   $cont.addEventListener('click', function(ev){
@@ -298,47 +434,28 @@ function paginaAseo() {
     card.click();
   });
 
-  function error(titulo, detalle){
-    $cont.innerHTML = '<div class="aviso"><strong>' + esc(titulo) + '</strong>' + esc(detalle) + '</div>';
-    $barra.style.width = '0%';
-    $cuenta.textContent = '';
-  }
-
-  function traer(accion){
-    return fetch(API + '/?action=' + accion + '&date=' + encodeURIComponent(fecha), { cache:'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        if(!j || !j.ok) throw new Error((j && j.error) || 'respuesta inesperada');
-        return j.huespedes || [];
-      });
-  }
-
   function cargar(){
     $sub.textContent = 'Cargando\\u2026';
     $cont.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
-    Promise.all(GRUPOS.map(function(g){ return traer(g.accion); }))
+    Promise.all(GRUPOS.map(function(g){ return traer(g.accion, fecha); }))
       .then(function(res){
         var datos = {};
         GRUPOS.forEach(function(g,i){ datos[g.clave] = res[i]; });
         pintar(datos);
-        var ahora = new Date();
-        $sub.textContent = 'Actualizado ' +
-          String(ahora.getHours()).padStart(2,'0') + ':' +
-          String(ahora.getMinutes()).padStart(2,'0');
+        $sub.textContent = marcaHora();
       })
       .catch(function(e){
         $sub.textContent = 'Sin conexi\\u00f3n con el sistema';
-        error('No se pudieron cargar las habitaciones',
-              'Revisa la conexi\\u00f3n y vuelve a intentar. Si sigue fallando, av\\u00edsale a administraci\\u00f3n. (' + e.message + ')');
+        $cont.innerHTML = '<div class="aviso"><strong>No se pudieron cargar las habitaciones</strong>' +
+          'Revisa la conexi\\u00f3n y vuelve a intentar. Si sigue fallando, av\\u00edsale a administraci\\u00f3n. (' +
+          esc(e.message) + ')</div>';
+        $barra.style.width = '0%';
+        $cuenta.textContent = '';
       });
   }
 
-  $fecha.addEventListener('change', function(){
-    fecha = $fecha.value || hoy();
-    cargar();
-  });
+  $fecha.addEventListener('change', function(){ fecha = $fecha.value || hoy(); cargar(); });
   document.getElementById('recargar').addEventListener('click', cargar);
-
   cargar();
 })();
 <\/script>`;
@@ -346,29 +463,163 @@ function paginaAseo() {
   return layout('Aseo · Bahía 79', cuerpo);
 }
 
-function paginaPendiente(nombre) {
+// ---------------------------------------------------------------------------
+// Facturación
+// ---------------------------------------------------------------------------
+
+function paginaFacturacion() {
   const cuerpo = `
 <header>
+  <a class="volver" data-page="inicio" href="?action=html&amp;page=inicio">&lsaquo; Inicio</a>
+  <div class="fila">
+    <div style="flex:1;min-width:150px">
+      <h1>Facturaci&oacute;n</h1>
+      <div class="sub" id="sub">Cargando&hellip;</div>
+    </div>
+    <input type="date" id="fecha" aria-label="Fecha">
+    <button id="recargar" aria-label="Recargar">&#8635;</button>
+  </div>
+  <input type="search" id="buscar" placeholder="Buscar por habitaci&oacute;n, nombre o agencia" aria-label="Buscar">
+</header>
+
+<div class="resumen" id="resumen"></div>
+<div id="contenido">
+  <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+</div>
+
+<footer>Datos en vivo de LobbyPMS. No sustituyen la factura oficial.</footer>
+
+<script>
+(function(){
+  "use strict";
+${JS_COMUN}
+
+  var $fecha = document.getElementById('fecha');
+  var $sub = document.getElementById('sub');
+  var $cont = document.getElementById('contenido');
+  var $resumen = document.getElementById('resumen');
+  var $buscar = document.getElementById('buscar');
+
+  var fecha = params.get('date') || hoy();
+  $fecha.value = fecha;
+  var TODAS = [];
+
+  var moneda = new Intl.NumberFormat('es-CO', {
+    style:'currency', currency:'COP', maximumFractionDigits:0
+  });
+  function plata(n){ return moneda.format(Number(n)||0); }
+
+  function cifra(k, v){
+    return '<div class="cifra"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+  }
+
+  function pintarResumen(lista){
+    var total = 0, imp = 0;
+    lista.forEach(function(h){ total += Number(h.total)||0; imp += Number(h.impuesto)||0; });
+    $resumen.innerHTML =
+      cifra('Reservas', lista.length) +
+      cifra('Total', plata(total)) +
+      cifra('Impuestos', plata(imp));
+  }
+
+  function tarjeta(h){
+    var meta = [];
+    if(h.agencia) meta.push(h.agencia);
+    if(h.plan) meta.push(h.plan);
+    if(h.estatus) meta.push(h.estatus);
+    if(h.fecha_ingreso || h.fecha_salida){
+      meta.push(fechaCorta(h.fecha_ingreso) + ' \\u2192 ' + fechaCorta(h.fecha_salida));
+    }
+    var html = '<article class="card">';
+    html += '<div class="info">';
+    html += '<div class="hab">' + esc(h.habitacion || 'Sin habitaci\\u00f3n') + '</div>';
+    if(h.nombre) html += '<div class="nombre">' + esc(h.nombre) + '</div>';
+    if(meta.length) html += '<div class="meta">' + esc(meta.join(' \\u00b7 ')) + '</div>';
+    html += '</div>';
+    html += '<div class="plata"><div class="total">' + plata(h.total) + '</div>';
+    if(Number(h.impuesto)) html += '<div class="imp">imp. ' + plata(h.impuesto) + '</div>';
+    html += '</div></article>';
+    return html;
+  }
+
+  function pintar(lista){
+    pintarResumen(lista);
+    if(!lista.length){
+      $cont.innerHTML = '<div class="vacio">Ninguna reserva coincide.</div>';
+      return;
+    }
+    $cont.innerHTML = lista.map(tarjeta).join('');
+  }
+
+  function filtrar(){
+    var q = $buscar.value.trim().toLowerCase();
+    if(!q){ pintar(TODAS); return; }
+    pintar(TODAS.filter(function(h){
+      return [h.habitacion, h.nombre, h.agencia, h.plan, h.estatus]
+        .join(' ').toLowerCase().indexOf(q) !== -1;
+    }));
+  }
+
+  function cargar(){
+    $sub.textContent = 'Cargando\\u2026';
+    $resumen.innerHTML = '';
+    $cont.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+    traer('facturacion', fecha)
+      .then(function(lista){
+        TODAS = lista;
+        filtrar();
+        $sub.textContent = marcaHora();
+      })
+      .catch(function(e){
+        $sub.textContent = 'Sin conexi\\u00f3n con el sistema';
+        $resumen.innerHTML = '';
+        $cont.innerHTML = '<div class="aviso"><strong>No se pudo cargar la facturaci\\u00f3n</strong>' +
+          'Revisa la conexi\\u00f3n y vuelve a intentar. (' + esc(e.message) + ')</div>';
+      });
+  }
+
+  $fecha.addEventListener('change', function(){ fecha = $fecha.value || hoy(); cargar(); });
+  $buscar.addEventListener('input', filtrar);
+  document.getElementById('recargar').addEventListener('click', cargar);
+  cargar();
+})();
+<\/script>`;
+
+  return layout('Facturación · Bahía 79', cuerpo);
+}
+
+// ---------------------------------------------------------------------------
+// Páginas todavía no construidas
+// ---------------------------------------------------------------------------
+
+function paginaPendiente(nombre, explicacion) {
+  const cuerpo = `
+<header>
+  <a class="volver" data-page="inicio" href="?action=html&amp;page=inicio">&lsaquo; Inicio</a>
   <div class="fila"><div><h1>${nombre}</h1><div class="sub">Bah&iacute;a 79</div></div></div>
 </header>
 <div class="aviso">
   <strong>Esta p&aacute;gina todav&iacute;a no existe</strong>
-  La ruta funciona, pero la p&aacute;gina de <em>${nombre}</em> no se ha construido.
-  La de aseo s&iacute; est&aacute; lista.
+  ${explicacion}
 </div>`;
   return layout(nombre + ' · Bahía 79', cuerpo);
 }
 
 const PAGINAS = {
+  inicio: paginaInicio,
   aseo: paginaAseo,
-  facturacion: () => paginaPendiente('Facturación'),
-  jacuzzi: () => paginaPendiente('Jacuzzi'),
-  cajamenor: () => paginaPendiente('Caja menor'),
+  facturacion: paginaFacturacion,
+  jacuzzi: () => paginaPendiente('Jacuzzi',
+    'La ruta funciona, pero falta definir qu&eacute; debe registrar: turnos de uso, mantenimiento o cobro.'),
+  cajamenor: () => paginaPendiente('Caja menor',
+    'La ruta funciona, pero falta definir qu&eacute; debe registrar y d&oacute;nde se guardan los gastos.'),
 };
 
 function renderPage(page) {
-  const fn = PAGINAS[String(page || 'aseo').toLowerCase()];
-  return fn ? fn() : paginaPendiente('Página desconocida');
+  const clave = String(page || 'inicio').toLowerCase();
+  const fn = PAGINAS[clave];
+  return fn ? fn() : paginaPendiente('Página desconocida',
+    'No hay ninguna p&aacute;gina con ese nombre. Vuelve al inicio para ver las disponibles.');
 }
 
 module.exports = { renderPage };

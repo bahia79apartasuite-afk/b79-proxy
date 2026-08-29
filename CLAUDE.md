@@ -34,11 +34,18 @@ login, ni llamadas al PMS. **Para cambiar el diseño de una página, edita `page
 
 ### `pages.js`
 
-Exporta `renderPage(page)`, que devuelve el HTML de `aseo`, `facturacion`, `jacuzzi` o
-`cajamenor`. Sólo `aseo` está construida; las otras tres devuelven un aviso de "todavía no
-existe". Las páginas no reciben datos incrustados: piden lo suyo por HTTP a
-`?action=aseo|llegadas|salidas`, como cualquier cliente externo. Aceptan `?api=` para apuntar
-a otro origen al probar en local.
+Exporta `renderPage(page)`, que devuelve el HTML de `inicio` (portada), `aseo`,
+`facturacion`, `jacuzzi` o `cajamenor`. Las dos últimas muestran un aviso de pendiente.
+Las páginas no reciben datos incrustados: piden lo suyo por HTTP a
+`?action=aseo|llegadas|salidas|facturacion`, como cualquier cliente externo. Aceptan `?api=`
+para apuntar a otro origen al probar en local.
+
+**Los enlaces entre páginas nunca deben ser relativos.** Servida desde Netlify en
+`/b79-aseo/`, una URL como `?action=html&page=inicio` resuelve a
+`/b79-aseo/?action=html&page=inicio`, que `_redirects` vuelve a mandar a aseo: el botón
+"Inicio" se quedaría dando vueltas. Por eso cada enlace lleva `data-page` y el script `JS_NAV`
+le pone el `href` correcto según el origen (rutas de Netlify, o `?action=html` si sirve el
+proxy directo).
 
 ## Acciones disponibles
 
@@ -81,13 +88,27 @@ Parámetro `date=YYYY-MM-DD`; por defecto, hoy.
   altere el comportamiento del servidor.
 - Explica en español, claro y directo.
 
+## Probar las páginas sin LobbyPMS
+
+```
+node server.js                 # el proxy, en el 3000
+node pruebas/api-falsa.js      # datos inventados, en el 3001
+```
+Y abre `http://localhost:3000/?action=html&page=aseo&api=http://localhost:3001`.
+El parámetro `?api=` desvía las lecturas a la API falsa, así que puedes rediseñar
+cualquier página sin credenciales, sin internet y sin tocar datos reales.
+
 ## Entregable esperado
 
-Cambios en `server.js` probados contra el proxy en vivo (o con `node server.js` local +
-`curl`), commit descriptivo, y un resumen de una línea de qué endpoint cambió y cómo verificarlo.
+Cambios probados con `node server.js` en local, commit descriptivo, y un resumen de una línea
+de qué cambió y cómo verificarlo. Para las páginas, pruébalas en un navegador de verdad contra
+una API falsa con datos inventados (nunca de huéspedes reales) y **mira la captura**: un test
+en verde con la pantalla rota no prueba nada.
 
 ## Estado de las páginas
 
-`_redirects` manda las cuatro rutas a `?action=html&page=...`, que ya funciona (v8.2).
-`aseo` está construida; `facturacion`, `jacuzzi` y `cajamenor` muestran un aviso de pendiente
-hasta que se pidan.
+`inicio` y `aseo` y `facturacion` están construidas. `jacuzzi` y `cajamenor` muestran un
+aviso de pendiente: falta definir qué deben registrar y dónde se guardaría, porque el proxy
+no tiene almacenamiento propio.
+
+`_redirects` cubre `/b79` (portada) y las cuatro rutas, cada una con y sin barra final.

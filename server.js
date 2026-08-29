@@ -1,5 +1,6 @@
-// b79-proxy server.js v8.2 - Two-step session-cookie auth (multipart) for LobbyPMS
+// b79-proxy server.js v8.3 - Two-step session-cookie auth (multipart) for LobbyPMS
 //                          + action=html sirve las paginas operativas (ver pages.js)
+//                          + portada y pagina de facturacion
 const http = require('http');
 const https = require('https');
 const { renderPage } = require('./pages');
@@ -213,7 +214,7 @@ async function handleAction(action, query) {
                             return { ok: true, ip: r.body };
             }
             if (action === 'debug') {
-                            return { ok: true, version: '8.2', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
+                            return { ok: true, version: '8.3', login: !!SESSION_COOKIES, expires_in: SESSION_EXPIRES > Date.now() ? Math.floor((SESSION_EXPIRES - Date.now()) / 1000) : 0, last_login_detail: LAST_LOGIN_DETAIL };
             }
             if (action === 'pwd_check') {
                             return { ok: true, user_name: LOBBY_USER_NAME, user_len: LOBBY_USER_NAME.length, pwd_len: LOBBY_PASS.length, pwd_chars: LOBBY_PASS.split('').map(c=>c.charCodeAt(0)), property: LOBBY_PROPERTY_ID };
@@ -282,4 +283,4 @@ const server = http.createServer(async (req, res) => {
             }
 });
 
-server.listen(PORT, () => console.log('b79-proxy v8.2 listening on', PORT));
+server.listen(PORT, () => console.log('b79-proxy v8.3 listening on', PORT));
