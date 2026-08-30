@@ -18,7 +18,10 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 RAIZ = Path(__file__).resolve().parent.parent
-GUIA = RAIZ / "guia" / "index.html"
+import os
+# se puede verificar la version normal o la de un solo archivo: la segunda es la que
+# de verdad importa que funcione, porque es la que acaba en un telefono
+GUIA = RAIZ / "guia" / (os.environ.get("GUIA") or "index.html")
 CAPTURAS = RAIZ / "guia" / "_capturas"
 VISTAS = ["visor", "anatomia", "sistema", "replicar", "coste", "errores", "automatico",
           "glosario"]

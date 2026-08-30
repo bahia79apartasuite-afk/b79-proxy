@@ -28,6 +28,10 @@ JS = r"""
   var estado = leer();
 
   function $(s, r) { return (r || document).querySelector(s); }
+  // En la version de un solo archivo las imagenes viven en window.__IMG__ como data URI,
+  // puestas una sola vez aunque cada frame se use en tres sitios. Con la carpeta al lado,
+  // el mapa no existe y se cae a la ruta normal.
+  function rutaImg(clave) { return (window.__IMG__ || {})[clave] || 'img/' + clave + '.png'; }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
 
   // ------------------------------------------------------------ 1. pestanas
@@ -233,7 +237,7 @@ JS = r"""
       return {
         n: p.n, tipo: p.tipo, 'in': p['in'], dur: p.dur, frames: p.frames,
         camara: p.camara, funcion: p.funcion, alt: p.accion,
-        src: 'img/' + v + '_' + pad(p.n) + '.png'
+        src: rutaImg(v + '_' + pad(p.n))
       };
     });
     $$('.plano', rejilla).forEach(function (b, i) {

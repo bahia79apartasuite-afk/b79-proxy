@@ -636,7 +636,12 @@ def vista_glosario() -> str:
 
 
 # ================================================================ documento
-def construir() -> str:
+def partes() -> dict:
+    """Las piezas sueltas del documento.
+
+    Se separan de construir() para poder montar tambien la version de un solo archivo
+    (tools/guia_movil.py), que necesita el mismo cuerpo pero otra envoltura.
+    """
     d = {v: datos(v) for v in VIDEOS}
     tabs = [("visor", "El ritmo"), ("anatomia", "Anatomia"), ("sistema", "El sistema"),
             ("replicar", "Mi personaje"), ("coste", "Coste"), ("errores", "Errores"),
@@ -646,23 +651,7 @@ def construir() -> str:
         f'aria-selected="{"true" if i == "visor" else "false"}">{e(t)}</button>'
         for i, t in tabs)
 
-    paquete = json.dumps(planos_json(d), ensure_ascii=False, separators=(",", ":"))
-    tour = json.dumps(TOUR, ensure_ascii=False, separators=(",", ":"))
-
-    return f"""<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sala de Montaje</title>
-<meta name="description" content="Sistema paso a paso para producir video de animacion
-pintada con IA, sacado de diseccionar dos referentes plano a plano.">
-<meta name="color-scheme" content="dark">
-<style>{css_fuentes()}</style>
-<style>{CSS}</style>
-</head>
-<body>
-<header class="top">
+    cuerpo = f"""<header class="top">
   <div class="fila"><div class="marca"><i class="punto"></i>Sala de montaje</div></div>
   <nav class="tabs" role="tablist" aria-label="Secciones">{nav}</nav>
 </header>
@@ -677,9 +666,8 @@ pintada con IA, sacado de diseccionar dos referentes plano a plano.">
 {vista_glosario()}
 </main>
 <footer>
-  <p>Generado por <code>tools/generar_guia.py</code> desde el analisis de
-  <code>analysis/</code>. Los tiempos, las paletas y el ritmo estan medidos sobre los
-  archivos con <code>ffmpeg</code>, no estimados.</p>
+  <p>Generado desde el analisis de los dos referentes. Los tiempos, las paletas y el
+  ritmo estan medidos sobre los archivos con <code>ffmpeg</code>, no estimados.</p>
 </footer>
 
 <div class="lb" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Plano ampliado">
@@ -700,9 +688,36 @@ pintada con IA, sacado de diseccionar dos referentes plano a plano.">
   <span class="cuenta">0/{len(PASOS)} pasos</span>
   <span class="pista"><span class="relleno"></span></span>
   <button type="button">reiniciar</button>
-</div>
-<script>window.__PLANOS__={paquete};window.__TOUR__={tour};</script>
-<script>{JS}</script>
+</div>"""
+
+    datos_js = (f"window.__PLANOS__="
+                f"{json.dumps(planos_json(d), ensure_ascii=False, separators=(',', ':'))};"
+                f"window.__TOUR__="
+                f"{json.dumps(TOUR, ensure_ascii=False, separators=(',', ':'))};")
+
+    return {"titulo": "Sala de Montaje", "fuentes": css_fuentes(), "css": CSS,
+            "cuerpo": cuerpo, "datos": datos_js, "js": JS,
+            "descripcion": ("Sistema paso a paso para producir video de animacion pintada "
+                            "con IA, sacado de diseccionar dos referentes plano a plano.")}
+
+
+def construir() -> str:
+    p = partes()
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{p['titulo']}</title>
+<meta name="description" content="{p['descripcion']}">
+<meta name="color-scheme" content="dark">
+<style>{p['fuentes']}</style>
+<style>{p['css']}</style>
+</head>
+<body>
+{p['cuerpo']}
+<script>{p['datos']}</script>
+<script>{p['js']}</script>
 </body>
 </html>
 """
