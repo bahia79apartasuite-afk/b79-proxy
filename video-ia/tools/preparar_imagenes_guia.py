@@ -2,7 +2,8 @@
 """Fase 5 - copia a guia/img/ los frames que usa la guia, ya reducidos.
 
 La guia tiene que funcionar sin internet, asi que las imagenes van en la propia carpeta.
-Se reducen y se cuantizan para que abrirla en el movil no tarde.
+Se reducen y se cuantizan para que abrirla en el movil no tarde: el estilo pintado tiene
+paleta corta, asi que bajar a 128 colores no se nota y pesa un tercio.
 """
 import json, shutil
 from pathlib import Path
@@ -10,7 +11,9 @@ from PIL import Image
 
 RAIZ = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ / "guia" / "img"
-ANCHO = 460
+# 640 px: nitido en las tarjetas (que lo pintan a 300-440) y suficiente en el visor
+# grande y en el lightbox. Un solo tamano en vez de dos evita duplicar 6 MB.
+ANCHO = 640
 COLORES = 128
 
 

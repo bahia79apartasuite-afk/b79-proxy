@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Fase 5 - genera guia/index.html.
 
-Un solo archivo, autocontenido, sin CDN y sin fuentes externas. Las imagenes van en
-guia/img/ (las prepara tools/preparar_imagenes_guia.py), asi que la guia abre sin internet.
+Un solo archivo autocontenido: fuentes incrustadas en base64, cero CDN, cero red. Las
+imagenes van en guia/img/, asi que la guia abre sin internet.
 
-Todo el contenido de datos sale del analisis, no de escribirlo a mano:
+Todo el dato sale del analisis y no de escribirlo a mano:
   analysis/<video>/shots.json       tiempos y duraciones (ffmpeg)
-  analysis/<video>/anotaciones.json tipo de plano y funcion narrativa
+  analysis/<video>/anotaciones.json tipo de plano, camara, accion y funcion narrativa
   analysis/<video>/paleta.json      paletas medidas por acto
   analysis/<video>/STYLE.md         el bloque de estilo
 Asi la guia no se puede desincronizar de la shotlist.
@@ -18,12 +18,16 @@ import json
 import re
 from pathlib import Path
 
+from guia_contenido import (ERRORES, GLOSARIO, HERRAMIENTAS, MAPA_SVG, PASOS,
+                            PLANTILLAS_FORM, TOUR, CAPAS_PROMPT)
 from guia_css import CSS
+from guia_fuentes import css as css_fuentes
 from guia_js import JS
-from guia_contenido import PASOS, ERRORES, GLOSARIO, HERRAMIENTAS, PLANTILLAS_FORM, MAPA_SVG
 
 RAIZ = Path(__file__).resolve().parent.parent
 SALIDA = RAIZ / "guia" / "index.html"
+VIDEOS = ("on_the_road", "black_sand")
+TIPOS = ("macro", "busto", "amplio", "POV", "impacto", "titulo")
 
 
 # ---------------------------------------------------------------- utilidades
@@ -43,206 +47,274 @@ def datos(video: str) -> dict:
 
 def bloque_estilo(video: str) -> str:
     texto = (RAIZ / "analysis" / video / "STYLE.md").read_text()
-    seccion = texto.split("## 8. Bloque de estilo")[1]
-    return re.search(r"```\n(.*?)\n```", seccion, re.S).group(1).strip()
+    return re.search(r"```\n(.*?)\n```", texto.split("## 8. Bloque de estilo")[1],
+                     re.S).group(1).strip()
 
 
-def prompt(texto: str, rotulo: str = "", plantilla: str = "") -> str:
+def planos_json(d: dict) -> dict:
+    """El paquete de datos que consume el JavaScript. Sale de la shotlist, no del HTML."""
+    salida = {}
+    for v in VIDEOS:
+        s, a = d[v]["shots"], d[v]["anot"]["planos"]
+        salida[v] = {
+            "duracion": s["duracion"], "n": s["n_planos"],
+            "planos": [{
+                "n": p["n"], "in": p["in"], "out": p["out"], "dur": p["dur"],
+                "frames": p["frames"], "tipo": a[str(p["n"])]["tipo"],
+                "camara": a[str(p["n"])]["camara"], "accion": a[str(p["n"])]["accion"],
+                "funcion": a[str(p["n"])]["funcion"],
+            } for p in s["planos"]],
+        }
+    return salida
+
+
+def prompt(texto: str = "", rotulo: str = "", plantilla: str = "") -> str:
     attr = f' data-plantilla="{e(plantilla)}"' if plantilla else ""
-    cuerpo = e(texto) if not plantilla else ""
-    return (f'<div class="prompt">'
-            + (f'<p class="rotulo">{e(rotulo)}</p>' if rotulo else "")
-            + f'<pre{attr}>{cuerpo}</pre>'
-            f'<button class="copiar" type="button">copiar</button></div>')
+    return (
+        '<div class="prompt">'
+        '<div class="cabecera">'
+        + (f'<span class="rotulo">{e(rotulo)}</span>' if rotulo else "<span></span>")
+        + '<button class="copiar" type="button">copiar</button></div>'
+        f'<pre{attr}>{e(texto) if not plantilla else ""}</pre></div>')
 
 
 def swatches(colores: list[dict]) -> str:
-    s = "".join(
-        f'<div class="swatch"><i style="background:{e(c["hex"])}"></i>'
-        f'<span>{e(c["hex"])}</span></div>' for c in colores)
+    s = "".join(f'<button class="swatch" type="button" title="Copiar {e(c["hex"])}">'
+                f'<i style="background:{e(c["hex"])}"></i><span>{e(c["hex"])}</span></button>'
+                for c in colores)
     return f'<div class="paleta">{s}</div>'
 
 
-def tabla(cabeceras: list[str], filas: list[list[str]]) -> str:
-    th = "".join(f"<th>{e(c)}</th>" for c in cabeceras)
+def tabla(cab: list[str], filas: list[list[str]]) -> str:
+    th = "".join(f"<th>{e(c)}</th>" for c in cab)
     tr = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in f) + "</tr>" for f in filas)
-    return f'<div class="tabla"><table><thead><tr>{th}</tr></thead><tbody>{tr}</tbody></table></div>'
+    return (f'<div class="tabla"><table><thead><tr>{th}</tr></thead>'
+            f"<tbody>{tr}</tbody></table></div>")
 
 
-# ---------------------------------------------------------------- 1. inicio
-def vista_inicio(d: dict) -> str:
+# ================================================================ 1. EL VISOR
+def vista_visor(d: dict) -> str:
+    """La pieza central: reproduce cada plano durante su duracion real."""
+    imgs, tiras = [], []
+    for v in VIDEOS:
+        s, a = d[v]["shots"], d[v]["anot"]["planos"]
+        for p in s["planos"]:
+            imgs.append(
+                f'<img data-peli="{v}" data-n="{p["n"]}" src="img/{v}_{p["n"]:02d}.png" '
+                f'alt="Plano {p["n"]} de {v}: {e(a[str(p["n"])]["accion"])}" '
+                f'{"" if p["n"] <= 3 else "loading=lazy"}>')
+        total = s["duracion"]
+        blks = "".join(
+            f'<button class="blk" type="button" data-i="{i}" data-n="{p["n"]}" '
+            # porcentaje explicito y no flex-grow: con 53 bloques en 390 px el reparto
+            # por grow se cae y todos acaban del mismo ancho, que es justo lo contrario
+            # de lo que este grafico tiene que ensenar
+            f'style="width:{100 * p["dur"] / total:.4f}%;'
+            f'--c:var(--t-{a[str(p["n"])]["tipo"]})" '
+            f'title="Plano {p["n"]:02d} · {p["dur"]:.2f} s · {a[str(p["n"])]["tipo"]}" '
+            f'aria-label="Ir al plano {p["n"]}">'
+            f'<img src="img/{v}_{p["n"]:02d}.png" alt="" loading="lazy"></button>'
+            for i, p in enumerate(s["planos"]))
+        tiras.append(f'<div class="tira" data-peli="{v}" role="group" '
+                     f'aria-label="Linea de tiempo de {v}">{blks}</div>')
+
+    leyenda = "".join(f'<span style="--c:var(--t-{t})"><i></i>{e(t)}</span>' for t in TIPOS)
     otr, bs = d["on_the_road"]["shots"], d["black_sand"]["shots"]
-    herr = tabla(["Para que", "Herramienta", "Alternativa", "Nota"], [
-        [f"<b>{e(h[0])}</b>", f"<code>{e(h[1])}</code>", f"<code>{e(h[2])}</code>", e(h[3])]
-        for h in HERRAMIENTAS])
-
-    coste = tabla(["Concepto", "Cantidad", "A la primera", "Realista (2,5 intentos)"], [
-        ["Start frames (imagen)", "28", "1,68 USD", "4,20 USD"],
-        ["Planos animados 4-6 s", "28", "8,21 USD", "20,53 USD"],
-        ["Vinetas y negros", "0 en este video", "0,00 USD", "0,00 USD"],
-        ["<b>Total</b>", "<b>39 s de video</b>", "<b>9,89 USD</b>", "<b>24,73 USD</b>"],
-    ])
 
     return f"""
-<section id="inicio">
-  <h1>Hacer un video de IA que no parezca un video de IA</h1>
-  <p class="intro">Esta guia sale de diseccionar dos videos reales, plano a plano, con
-  <code>ffmpeg</code>. No es teoria: los tiempos, las paletas y el ritmo que vas a leer estan
-  medidos sobre los archivos. Si sigues el orden, sale. Si te lo saltas, no.</p>
+<section id="visor">
+  <h1>El ritmo no se explica. Se siente.</h1>
+  <p class="entrada">Esto reproduce los planos de un referente durante <b>su duracion
+  real</b>, medida con <code>ffmpeg</code>. Dale al play y mira el contador: veras que
+  <code>on_the_road</code> acelera sin parar hasta que los planos duran diez frames, y que
+  <code>black_sand</code> mete rafagas que se acaban antes de que las registres.</p>
+
+  <div class="visor" id="el-visor">
+    <div class="pantalla">
+      {''.join(imgs)}
+      <div class="esquina"><i class="grabando"></i>
+        <span class="rotulo" style="color:var(--tinta3)">referencia</span></div>
+      <div class="sobre"><span class="accion"></span><span class="tc"></span></div>
+    </div>
+    <div class="transporte">
+      <button class="tbtn" id="prev" type="button" aria-label="Plano anterior"></button>
+      <button class="tbtn grande" id="play" type="button" aria-label="Reproducir"></button>
+      <button class="tbtn" id="next" type="button" aria-label="Plano siguiente"></button>
+      <span class="contador"></span>
+      <span class="sep"></span>
+      <div class="selpeli" role="group" aria-label="Elegir referente">
+        <button type="button" data-peli="on_the_road">on_the_road</button>
+        <button type="button" data-peli="black_sand" class="bs">black_sand</button>
+      </div>
+      <div class="velocidad" role="group" aria-label="Velocidad">
+        <button type="button" data-vel="0.25">0,25×</button>
+        <button type="button" data-vel="0.5">0,5×</button>
+        <button type="button" data-vel="1">1×</button>
+      </div>
+    </div>
+    {''.join(tiras)}
+    <div class="leyenda">{leyenda}</div>
+  </div>
+  <p class="rotulo" style="margin:0 0 2rem">Cada bloque de la tira ocupa lo que dura el
+  plano · pulsa espacio para reproducir · flechas para ir plano a plano</p>
 
   <div class="rejilla tres">
-    <div class="tarjeta"><span class="dato">{otr['n_planos']}</span>
-      <span>planos en 39 s de <code>on_the_road</code>, uno cada {otr['plano_medio']} s</span></div>
-    <div class="tarjeta"><span class="dato">{bs['n_planos']}</span>
-      <span>planos en 76 s de <code>black_sand</code>, el mas corto de 1 frame</span></div>
-    <div class="tarjeta"><span class="dato">31 %</span>
-      <span>del metraje son insertos macro de objetos. Ahi esta el truco</span></div>
+    <div class="tarjeta"><span class="cifra">{otr['n_planos']}</span>
+      <span>planos en {otr['duracion']:.0f} s. El mas largo dura
+      {otr['plano_mas_largo']} frames; el mas corto, {otr['plano_mas_corto']}</span></div>
+    <div class="tarjeta"><span class="cifra roja">{bs['n_planos']}</span>
+      <span>planos en {bs['duracion']:.0f} s, y ocho de ellos duran
+      <b>un solo frame</b> — 33 milesimas</span></div>
+    <div class="tarjeta"><span class="cifra">31 %</span>
+      <span>del metraje son insertos macro de objetos. Ahi esta el truco entero</span></div>
   </div>
 
-  <h2>Que es este estilo</h2>
-  <p>Animacion pintada. Se reconoce por cinco cosas concretas, y las cinco se pueden pedir:</p>
-  <ul>
-    <li><b>Pincelada a la vista.</b> El fondo se resuelve en manchas grandes que no se funden
-      entre si. La cara, en cambio, va modelada. Ese desequilibrio es lo que hace que el
-      personaje salte del plano.</li>
-    <li><b>Linea solo donde hace falta.</b> Contorno grueso en ceja, parpado y nariz; el resto
-      se separa por contraste de valor. Si pides <i>bold outlines</i> a secas, te lo pone en
-      todo y pierdes el look.</li>
-    <li><b>Una sola fuente de luz, dura y de color.</b> Sombras sin relleno. En
-      <code>black_sand</code> no hay una sola luz blanca en 76 segundos.</li>
-    <li><b>Paleta corta.</b> Ocho colores para un video entero.</li>
-    <li><b>Corte rapido y desigual.</b> No es que vaya rapido: es que <b>alterna</b> planos de
-      4 segundos con rafagas de cuatro planos en 0,3 segundos.</li>
-  </ul>
-
-  <h2>El mapa</h2>
-  <p>Este es el orden y no es negociable. Cada paso da por hecho que el anterior esta
-  <b>aprobado</b>, no solo hecho.</p>
-  <div class="mapa">{MAPA_SVG}</div>
-  <div class="aviso">
-    <p><b>Primero el mundo, luego el personaje, luego los frames, luego el video.</b>
-    La razon es la luz: una ubicacion define hora del dia, direccion y temperatura de color.
-    Si generas al personaje antes, lo generas con una luz inventada y despues no encaja en
-    ningun sitio. Tendras planos correctos por separado que no cortan entre si.</p>
+  <h2>Lo que estas viendo</h2>
+  <div class="prosa">
+  <p>Los dos videos duran lo mismo por plano de media — 1,39 y 1,43 segundos — y no se
+  parecen en nada. La media miente, y por eso hay que verlo en movimiento.</p>
+  <p><b>on_the_road acelera de forma monotona:</b> 2,62 segundos por plano en el primer
+  acto, 1,46 en el segundo, 1,03 en el tercero. No hay ni un solo tramo que vaya mas lento
+  que el anterior. Esa curva es toda la estructura del video.</p>
+  <p><b>black_sand alterna.</b> Planos de cuatro y cinco segundos donde pasa la historia,
+  y entre medias tres rafagas de vinetas de comic de uno a tres frames que duran menos de
+  cuatro decimas cada una. Ademas usa cinco negros de puntuacion, que
+  <code>on_the_road</code> no tiene ni uno.</p>
   </div>
-
-  <h2>Que necesitas</h2>
-  {herr}
-
-  <h2>Cuanto cuesta</h2>
-  <p>Para un video de unos 40 segundos como <code>on_the_road</code>, con
-  <code>nano_banana_pro</code> a 2k para las imagenes y <code>seedance_2_0</code> a 720p para
-  el video:</p>
-  {coste}
-  <div class="aviso rojo">
-    <p><b>La columna que importa es la de la derecha.</b> Nadie aprueba un plano a la primera.
-    Dos o tres intentos por plano es lo normal, y en los bustos son mas. Presupuesta el doble
-    y medio de lo que suma la teoria.</p>
-    <p>Las tarifas cambian: comprueba las tuyas en el panel de tu proveedor. Lo que no cambia
-    es la proporcion: <b>animar cuesta unas cinco veces mas que generar la imagen</b>. Por eso
-    el sistema entero se organiza alrededor de no animar hasta estar seguro.</p>
+  {grafico("on_the_road", d, "La curva de aceleracion")}
+  {grafico("black_sand", d, "El patron de alternancia")}
+  <div class="aviso cian">
+    <p>Pasa el raton por las barras y baja hasta la lectura: te dice que plano es y que
+    pasa en el. Pulsa una y el visor salta a ese plano.</p>
   </div>
-
-  <h2>Como se ahorra de verdad</h2>
-  <ul>
-    <li><b>Los planos de 5 frames o menos no se animan.</b> Son imagenes fijas. En
-      <code>black_sand</code> son 19 de 53 planos: gastar 4 segundos de video para usar
-      2 frames es tirar el dinero.</li>
-    <li><b>Prueba a 6 s y 720p antes de la version larga.</b> Un plano largo que sale mal
-      cuesta lo mismo que tres pruebas cortas.</li>
-    <li><b>Genera a 720p y sube a 1080p solo el pase final.</b> Seedance 2.5 renderiza nativo
-      a 720p: lo que llama 1080p es un reescalado, no detalle nuevo.</li>
-  </ul>
 </section>"""
 
 
-# ---------------------------------------------------------------- 2. anatomia
-def ficha_plano(video: str, p: dict, a: dict) -> str:
+def grafico(video: str, d: dict, titulo: str) -> str:
+    """Barras de duracion por plano, con la media de cada acto encima.
+
+    Las barras solas no ensenan la aceleracion: hay planos largos sueltos en medio que
+    despistan. La media por acto es la que hace visible lo que afirma el texto —
+    2,62 -> 1,46 -> 1,03 segundos por plano en on_the_road.
+    """
+    s, a, actos = d[video]["shots"], d[video]["anot"]["planos"], d[video]["paleta"]["actos"]
+    ps = s["planos"]
+    tope = max(p["dur"] for p in ps)
+    barras = "".join(
+        f'<button class="b" type="button" style="height:{max(4, 100 * p["dur"] / tope):.1f}%;'
+        f'--c:var(--t-{a[str(p["n"])]["tipo"]})" '
+        f'aria-label="Plano {p["n"]}, {p["dur"]:.2f} segundos"></button>' for p in ps)
+
+    medias = []
+    for ac in actos:
+        dentro = [i for i, p in enumerate(ps) if ac["in"] <= p["in"] < ac["out"]]
+        if not dentro:
+            continue
+        izq, ancho = 100 * dentro[0] / len(ps), 100 * len(dentro) / len(ps)
+        alto = 100 * ac["plano_medio"] / tope
+        medias.append(
+            f'<span class="media" style="left:{izq:.2f}%;width:{ancho:.2f}%;'
+            f'bottom:{alto:.2f}%" aria-hidden="true">'
+            f'<b>{ac["plano_medio"]:.2f} s</b></span>')
+
     return f"""
-<article class="plano" data-tipo="{e(a['tipo'])}">
-  <img src="img/{video}_{p['n']:02d}.png" width="460" height="259" loading="lazy"
-       alt="Plano {p['n']} de {video}: {e(a['accion'])}">
-  <div class="cuerpo">
-    <span class="etq {e(a['tipo'])}">{e(a['tipo'])}</span>
-    <span class="n">{p['n']:02d}</span>
-    <p class="meta">{p['in']:.2f}s · {p['dur']:.2f}s · {p['frames']} frames · {e(a['camara'])}</p>
-    <p class="acc">{e(a['accion'])}</p>
-    <p class="fun">{e(a['funcion'])}</p>
-  </div>
-</article>"""
+<div class="ritmo" data-peli="{video}">
+  <span class="rotulo">{e(titulo)} · {e(video)}</span>
+  <div class="barras">{barras}<span class="medias">{''.join(medias)}</span></div>
+  <div class="ejes"><span>plano 01</span>
+    <span>altura = duracion · la linea es la media del acto · maximo {tope:.2f} s</span>
+    <span>plano {s['n_planos']}</span></div>
+  <p class="lectura">Pasa el raton por una barra para ver que plano es.</p>
+</div>"""
+
+
+# ================================================================ 2. anatomia
+def tarjeta_plano(video: str, p: dict, a: dict, tope: float) -> str:
+    return f"""
+<button class="plano" type="button" data-tipo="{e(a['tipo'])}"
+        style="--c:var(--t-{e(a['tipo'])})" aria-label="Ampliar plano {p['n']}">
+  <span class="marco">
+    <img src="img/{video}_{p['n']:02d}.png" width="640" height="360" loading="lazy"
+         alt="Plano {p['n']} de {video}: {e(a['accion'])}">
+    <span class="barra" style="--w:{max(4, 100 * p['dur'] / tope):.1f}%"></span>
+  </span>
+  <span class="cuerpo">
+    <span class="etq">{e(a['tipo'])}</span><span class="n">{p['n']:02d}</span>
+    <span class="meta">{p['in']:.2f}s · {p['dur']:.2f}s · {p['frames']}f</span>
+    <span class="acc">{e(a['accion'])}</span>
+    <span class="fun">{e(a['funcion'])}</span>
+  </span>
+</button>"""
 
 
 def bloque_video(video: str, d: dict, titulo: str, resumen: str) -> str:
-    s, anot, pal = d["shots"], d["anot"], d["paleta"]
-    tipos = sorted({v["tipo"] for v in anot["planos"].values()})
-    filtros = ('<div class="filtros" data-destino="planos-' + video + '">'
-               '<button data-tipo="todos" aria-pressed="true">todos</button>'
-               + "".join(f'<button data-tipo="{e(t)}" aria-pressed="false">{e(t)}</button>'
-                         for t in tipos) + "</div>")
-
-    actos = tabla(["Acto", "Duracion", "Planos", "s / plano", "Paleta"], [
+    s, anot, pal = d[video]["shots"], d[video]["anot"], d[video]["paleta"]
+    tope = max(p["dur"] for p in s["planos"])
+    tipos = [t for t in TIPOS if any(v["tipo"] == t for v in anot["planos"].values())]
+    filtros = (f'<div class="filtros" data-destino="planos-{video}">'
+               '<button type="button" data-tipo="todos" aria-pressed="true">todos</button>'
+               + "".join(f'<button type="button" data-tipo="{e(t)}" aria-pressed="false">'
+                         f"{e(t)}</button>" for t in tipos) + "</div>")
+    actos = tabla(["Acto", "Duracion", "Planos", "s / plano", "Paleta medida"], [
         [f"<b>{e(a['acto'])}</b>", f"{a['dur']:.1f} s", str(a["planos"]),
-         f"{a['plano_medio']:.2f}", swatches(a["paleta"][:5])]
-        for a in pal["actos"]])
-
-    planos = "".join(ficha_plano(video, p, anot["planos"][str(p["n"])]) for p in s["planos"])
-
+         f"{a['plano_medio']:.2f}", swatches(a["paleta"][:5])] for a in pal["actos"]])
+    planos = "".join(tarjeta_plano(video, p, anot["planos"][str(p["n"])], tope)
+                     for p in s["planos"])
     return f"""
   <h2>{e(titulo)}</h2>
-  <p>{resumen}</p>
+  <div class="prosa"><p>{resumen}</p></div>
   {tabla(["Duracion", "Planos", "Plano medio", "Cortes / s", "Mas corto", "Mas largo"],
          [[f"{s['duracion']} s", str(s['n_planos']), f"{s['plano_medio']} s",
            str(s['corte_por_segundo']), f"{s['plano_mas_corto']} frames",
            f"{s['plano_mas_largo']} frames"]])}
   <h3>Los actos y su paleta</h3>
+  <p class="rotulo" style="margin:-.2rem 0 .6rem">Pulsa un color para copiar el hex</p>
   {actos}
   <h3>Plano a plano</h3>
   {filtros}
-  <div class="planos" id="planos-{video}">{planos}</div>"""
+  <div class="planos" id="planos-{video}" data-peli="{video}">{planos}</div>"""
 
 
 def vista_anatomia(d: dict) -> str:
-    otr = bloque_video(
-        "on_the_road", d["on_the_road"], "on_the_road — 39 s, 28 planos",
-        "Un hombre come en un diner del desierto, se sube a su coche y se va. No hay trama. "
-        "Lo que sostiene el video es el <b>ritmo</b>: 2,62 s por plano en el primer acto, "
-        "1,46 en el segundo, 1,03 en el tercero. Acelera sin parar y no hay un solo tramo que "
-        "vaya mas lento que el anterior. Esa curva <b>es</b> la estructura.")
-    bs = bloque_video(
-        "black_sand", d["black_sand"], "black_sand — 76 s, 53 planos",
-        "Aqui si hay historia, y el montaje funciona al reves: no acelera, <b>alterna</b>. "
-        "Planos de 4 y 5 segundos donde pasa todo, y entre medias tres rafagas de vinetas de "
-        "comic de 1 a 3 frames que duran menos de 0,4 segundos cada una. Ocho planos duran "
-        "<b>un solo frame</b>. Ademas usa cinco negros de puntuacion, que "
-        "<code>on_the_road</code> no tiene ni uno.")
-
     return f"""
 <section id="anatomia" hidden>
   <h1>Anatomia de los dos referentes</h1>
-  <p class="intro">Cada tarjeta es un frame real del video, extraido con <code>ffmpeg</code>.
-  Debajo, que pasa en el plano y — lo que de verdad importa — <b>por que esta ahi</b>.
-  Filtra por tipo de plano para ver el patron.</p>
+  <p class="entrada">Cada tarjeta es un frame real del video. Debajo, que pasa en el plano
+  y — lo que de verdad importa — <b>por que esta ahi</b>. Pulsa cualquiera para verla
+  grande y moverte con las flechas.</p>
   <div class="aviso">
     <p>Fijate en una cosa mientras miras: <b>casi nunca hay dos planos seguidos del mismo
-    tipo</b>, salvo los macros, que van en pareja. Ese es el motor de todo. Un amplio detras
-    de otro amplio aburre; un macro detras de un macro construye un objeto.</p>
+    tipo</b>, salvo los macros, que van en pareja. Ese es el motor de todo. Un amplio
+    detras de otro amplio aburre; un macro detras de un macro construye un objeto.</p>
   </div>
-  {otr}
+  {bloque_video("on_the_road", d, "on_the_road — 39 s, 28 planos",
+    "Un hombre come en un diner del desierto, se sube a su coche y se va. No hay trama. "
+    "Lo que sostiene el video es el <b>ritmo</b>, y el ritmo se decide en la shotlist.")}
   <hr>
-  {bs}
+  {bloque_video("black_sand", d, "black_sand — 76 s, 53 planos",
+    "Aqui si hay historia, y el montaje funciona al reves: no acelera, <b>alterna</b>. "
+    "Y hay una rima que lo cuenta todo — el plano 39 repite exactamente el encuadre del "
+    "plano 16, dos perfiles enfrentados, misma distancia. Cambian los personajes y la luz. "
+    "Es la frase visual que cuenta el ascenso del protagonista sin una linea de dialogo.")}
 </section>"""
 
 
-# ---------------------------------------------------------------- 3. sistema
+# ================================================================ 3. sistema
 def vista_sistema(d: dict) -> str:
+    etapas = "".join(
+        f'<button class="et" type="button" data-i="{i}">'
+        f'<span class="num">{i + 1:02d}</span>'
+        f'<span class="nom">{e(g["nom"])}</span></button>'
+        for i, g in enumerate(TOUR))
+
     partes = []
     for i, p in enumerate(PASOS, 1):
         pid = f"paso-{p['id']}"
-        cuerpo = p["cuerpo"].format(
-            estilo_otr=prompt(d["on_the_road"]["estilo"], "Bloque de estilo de on_the_road"),
-            estilo_bs=prompt(d["black_sand"]["estilo"], "Bloque de estilo de black_sand"),
-        ) if "{estilo" in p["cuerpo"] else p["cuerpo"]
-
+        cuerpo = p["cuerpo"]
+        if "{estilo" in cuerpo:
+            cuerpo = cuerpo.format(
+                estilo_otr=prompt(d["on_the_road"]["estilo"], "Bloque de estilo · on_the_road"),
+                estilo_bs=prompt(d["black_sand"]["estilo"], "Bloque de estilo · black_sand"))
         donde = "".join(f'<span class="donde">{e(x)}</span>' for x in p["donde"])
         revisar = "".join(f"<li>{x}</li>" for x in p["revisar"])
         partes.append(f"""
@@ -250,47 +322,78 @@ def vista_sistema(d: dict) -> str:
   <button class="cab" type="button" aria-expanded="false" aria-controls="{pid}-c">
     <span class="orden">{i}</span>
     <span class="titulo"><b>{e(p['titulo'])}</b><small>{e(p['resumen'])}</small></span>
-    <span class="flecha">&#9656;</span>
+    <span class="flecha">&#9654;</span>
   </button>
   <div class="contenido" id="{pid}-c" hidden>
     {donde}
-    {cuerpo}
+    <div class="prosa">{cuerpo}</div>
     <h4>Que revisar antes de seguir</h4>
     <ul class="revisar">{revisar}</ul>
     <label class="check"><input type="checkbox" data-paso="{pid}">
-      Hecho y aprobado: {e(p['titulo'])}</label>
+      Hecho <b>y aprobado</b>: {e(p['titulo'])}</label>
   </div>
 </div>""")
 
     return f"""
 <section id="sistema" hidden>
   <h1>El sistema, paso a paso</h1>
-  <p class="intro">Ocho pasos en orden fijo. Marca cada uno cuando lo tengas
-  <b>aprobado</b>, no cuando lo tengas hecho. Lo que marques se guarda en este dispositivo.</p>
+  <p class="entrada">Ocho pasos en orden fijo. Marca cada uno cuando lo tengas
+  <b>aprobado</b>, no cuando lo tengas hecho. Lo que marques se guarda en este
+  dispositivo.</p>
+
+  <div class="tour" id="tour">
+    <span class="rotulo">El recorrido, de la idea al montaje</span>
+    <div class="via">{etapas}</div>
+    <div class="escena"></div>
+    <div class="mandos">
+      <button class="tbtn" id="tour-prev" type="button" aria-label="Etapa anterior">&#8249;</button>
+      <button class="copiar" id="tour-play" type="button"
+              style="font-size:.72rem;padding:.4rem .8rem">Ver el recorrido</button>
+      <button class="tbtn" id="tour-next" type="button" aria-label="Etapa siguiente">&#8250;</button>
+    </div>
+  </div>
+
   <div class="aviso rojo">
     <p><b>La regla dura:</b> nunca se anima sin un start frame aprobado, y nunca se hace un
     start frame sin la hoja de personaje y la ubicacion aprobadas. Saltarse esto es la causa
     numero uno de tirar el presupuesto.</p>
   </div>
   {''.join(partes)}
+  <h2>El mapa completo</h2>
+  <div class="mapa">{MAPA_SVG}</div>
 </section>"""
 
 
-# ---------------------------------------------------------------- 4. replicar
+# ================================================================ 4. replicar
 def vista_replicar() -> str:
     campos = [
-        ("nombre", "Nombre del personaje", "text", "EL MENSAJERO", "En mayusculas. Es la etiqueta que veras en todos los prompts."),
-        ("edad", "Edad y complexion", "text", "a woman in her forties, broad-shouldered", "En ingles. Los modelos responden mejor."),
-        ("piel", "Piel", "text", "pale skin with an olive undertone", ""),
-        ("cara", "Cara", "textarea", "square jaw, thin straight eyebrows, deep-set grey eyes, hooked nose, thin mouth held closed", "Mandibula, cejas, ojos, nariz, boca en reposo."),
-        ("pelo", "Pelo", "text", "black hair shaved at the sides and swept back on top", "El corte exacto, no 'pelo corto'."),
-        ("marca", "Marca distintiva", "text", "a vertical scar through the left eyebrow", "Una o dos como mucho. Y di el lado."),
-        ("ropa", "Vestuario", "textarea", "a heavy oxblood #6B2029 canvas jacket over a grey shirt, dark work trousers, black boots", "Con hex en los colores."),
-        ("nunca", "Lo que nunca lleva", "text", "sunglasses, jewellery, visible text on clothing, a smile", "Lo que el modelo anadiria solo."),
-        ("ubicacion", "Ubicacion", "textarea", "LOCATION — LOADING BAY: a concrete loading dock at night, four sodium lamps overhead, wet floor, roller shutters, cold blue city light beyond", "Cuenta los elementos. La luz al final."),
-        ("accion", "Accion del plano", "text", "she sets the crate down and straightens up", "UNA sola cosa que pasa. Nada de 'y luego'."),
-        ("camara", "Camara", "select", "", ""),
-        ("estilo", "Bloque de estilo", "textarea", "", "Pegalo desde tu STYLE.md, o usa el de uno de los referentes."),
+        ("nombre", "Nombre del personaje", "text", "EL MENSAJERO",
+         "En mayusculas. Es la etiqueta que veras en todos los prompts.", ""),
+        ("edad", "Edad y complexion", "text", "a woman in her forties, broad-shouldered",
+         "En ingles: los modelos entienden mucho mejor las palabras de color y encuadre.", ""),
+        ("piel", "Piel", "text", "pale skin with an olive undertone", "", ""),
+        ("cara", "Cara", "textarea",
+         "square jaw, thin straight eyebrows, deep-set grey eyes, hooked nose, thin mouth held closed",
+         "Mandibula, cejas, ojos, nariz, boca en reposo.", "ancho"),
+        ("pelo", "Pelo", "text", "black hair shaved at the sides and swept back on top",
+         "El corte exacto, no 'pelo corto'.", ""),
+        ("marca", "Marca distintiva", "text", "a vertical scar through the left eyebrow",
+         "Una o dos como mucho. Y di el lado: se voltea sola.", ""),
+        ("ropa", "Vestuario", "textarea",
+         "a heavy oxblood #6B2029 canvas jacket over a grey shirt, dark work trousers, black boots",
+         "Con hex en los colores.", "ancho"),
+        ("nunca", "Lo que nunca lleva", "text",
+         "sunglasses, jewellery, visible text on clothing, a smile",
+         "Lo que el modelo anadiria solo. Ahorra mas reintentos que cualquier adjetivo.", ""),
+        ("ubicacion", "Ubicacion", "textarea",
+         "LOCATION — LOADING BAY: a concrete loading dock at night, four sodium lamps overhead, "
+         "wet floor, roller shutters, cold blue city light beyond",
+         "Cuenta los elementos. La luz al final, y que ocupe la mitad del bloque.", "ancho"),
+        ("accion", "Accion del plano", "text", "she sets the crate down and straightens up",
+         "UNA sola cosa que pasa. Si lleva 'y luego', son dos planos.", ""),
+        ("camara", "Camara", "select", "", "", ""),
+        ("estilo", "Bloque de estilo", "textarea", "",
+         "Pegalo desde tu STYLE.md, o copia el de un referente desde el paso 6.", "ancho"),
     ]
     camaras = ["static shot with a slight handheld drift", "slow push in", "dolly in",
                "crash zoom in", "tracking shot alongside the subject",
@@ -300,84 +403,148 @@ def vista_replicar() -> str:
                "POV, camera as the character's eyes", "macro lens, extreme close-up",
                "static shot, locked off"]
 
-    html_campos = []
-    for name, etiqueta, tipo, ph, ayuda in campos:
-        ancho = ' ancho' if tipo == "textarea" else ""
+    campos_html = []
+    for name, etiqueta, tipo, ph, ayuda, clase in campos:
         if tipo == "textarea":
-            control = (f'<textarea name="{name}" rows="3" '
-                       f'placeholder="{e(ph)}"></textarea>')
+            control = f'<textarea id="f-{name}" name="{name}" rows="3" placeholder="{e(ph)}"></textarea>'
         elif tipo == "select":
             ops = "".join(f'<option value="{e(c)}">{e(c)}</option>' for c in camaras)
-            control = f'<select name="{name}">{ops}</select>'
+            control = f'<select id="f-{name}" name="{name}">{ops}</select>'
         else:
-            control = f'<input name="{name}" type="text" placeholder="{e(ph)}">'
-        html_campos.append(
-            f'<div class="campo{ancho}"><label for="{name}">{e(etiqueta)}</label>{control}'
+            control = f'<input id="f-{name}" name="{name}" type="text" placeholder="{e(ph)}">'
+        campos_html.append(
+            f'<div class="campo {clase}"><label for="f-{name}">{e(etiqueta)}</label>{control}'
             + (f"<small>{e(ayuda)}</small>" if ayuda else "") + "</div>")
 
-    salidas = "".join(
-        prompt("", rotulo=r, plantilla=t) for r, t in PLANTILLAS_FORM)
+    capas = "".join(
+        f'<div class="capa" data-requiere="{e(req)}" style="--c:{color}">'
+        f'<div class="cap">{e(rot)}</div>'
+        f'<pre data-plantilla="{e(txt)}"></pre></div>'
+        for rot, req, color, txt in CAPAS_PROMPT)
+
+    salidas = "".join(prompt(rotulo=r, plantilla=t) for r, t in PLANTILLAS_FORM)
 
     return f"""
 <section id="replicar" hidden>
   <h1>Replicar con mi personaje</h1>
-  <p class="intro">Rellena esto y los prompts de abajo se van montando solos. Lo que escribas
-  se guarda en este dispositivo. Escribe <b>en ingles</b>: los modelos de imagen entienden
-  mucho mejor las palabras de color, encuadre y luz en ingles, aunque tu pienses en espanol.</p>
+  <p class="entrada">Rellena esto y los prompts se montan solos abajo. Lo que escribas se
+  guarda en este dispositivo. Escribe <b>en ingles</b>: los modelos de imagen entienden
+  mucho mejor las palabras de color, encuadre y luz en ingles, aunque tu pienses en
+  espanol.</p>
   <form class="form" id="form-replicar" autocomplete="off"
-        onsubmit="return false">{''.join(html_campos)}</form>
-  <div class="aviso">
-    <p><b>El bloque de identidad debe medir entre 70 y 110 palabras.</b> Mas corto no fija la
-    cara; mas largo se diluye y el modelo empieza a ignorar el final.</p>
+        onsubmit="return false">{''.join(campos_html)}</form>
+
+  <h2>Como se apila un prompt</h2>
+  <p class="prosa">Cada capa se enciende cuando rellenas el campo que le toca. El orden no
+  es decorativo: los modelos pesan mas el principio del texto, y el estilo es lo que no se
+  puede permitir fallar, asi que va primero.</p>
+  <div class="capas">{capas}</div>
+  <div class="medidor" id="medidor">
+    <span class="pista"><span class="relleno"></span></span>
+    <span class="texto">0 palabras</span>
   </div>
-  <h2>Tus prompts</h2>
+  <p class="rotulo" style="margin:.3rem 0 2rem">El bloque de identidad quiere entre 70 y
+  110 palabras: mas corto no fija la cara, mas largo se diluye</p>
+
+  <h2>Tus prompts, listos para pegar</h2>
   {salidas}
-  <div class="aviso verde">
-    <p><b>El orden dentro del prompt importa.</b> Estilo primero, identidad despues, encuadre
-    al final. Los modelos pesan mas el principio del texto, y el estilo es lo que no se puede
-    permitir fallar.</p>
-  </div>
 </section>"""
 
 
-# ---------------------------------------------------------------- 5, 6, 7
+# ================================================================ 5, 6, 7
 def vista_errores() -> str:
     bloques = "".join(f"""
 <div class="tarjeta">
   <h3>{e(t)}</h3>
-  <p><b>Como se ve:</b> {sintoma}</p>
-  <p><b>Por que pasa:</b> {causa}</p>
-  <p><b>Que hacer:</b> {arreglo}</p>
+  <div class="prosa">
+    <p><b>Como se ve.</b> {sintoma}</p>
+    <p><b>Por que pasa.</b> {causa}</p>
+    <p><b>Que hacer.</b> {arreglo}</p>
+  </div>
 </div>""" for t, sintoma, causa, arreglo in ERRORES)
     return f"""
 <section id="errores" hidden>
   <h1>Los errores que vas a cometer</h1>
-  <p class="intro">Estos siete son los que se repiten. Los tres primeros son los que mas
-  presupuesto se llevan.</p>
+  <p class="entrada">Estos siete son los que se repiten. Los tres primeros son los que mas
+  presupuesto se llevan, y los tres se evitan con la misma disciplina: aprobar antes de
+  seguir.</p>
   {bloques}
 </section>"""
 
 
-def vista_glosario() -> str:
-    grupos = {}
-    for termino, grupo, definicion in GLOSARIO:
-        grupos.setdefault(grupo, []).append((termino, definicion))
-    partes = []
-    for grupo, items in grupos.items():
-        filas = [[f"<b>{e(t)}</b>", d] for t, d in items]
-        partes.append(f"<h2>{e(grupo)}</h2>" + tabla(["Termino", "Que significa"], filas))
+def vista_coste() -> str:
     return f"""
-<section id="glosario" hidden>
-  <h1>Glosario</h1>
-  <p class="intro">Sin dar nada por sabido. Si un termino de la guia no esta aqui y no lo
-  entiendes, es un fallo de la guia.</p>
-  {''.join(partes)}
+<section id="coste" hidden>
+  <h1>Cuanto cuesta</h1>
+  <p class="entrada">Mueve los mandos con tus numeros. Las tarifas de partida son las de
+  <code>nano_banana_pro</code> para imagen y <code>seedance_2_0</code> para video; cambian
+  a menudo, asi que comprueba las tuyas en el panel de tu proveedor. Lo que no cambia es la
+  proporcion.</p>
+
+  <div class="calc" id="calc">
+    <div class="mandos">
+      <div class="slider"><label for="c-planos">Planos <b id="c-planos-v">28</b></label>
+        <input id="c-planos" type="range" min="6" max="80" value="28"></div>
+      <div class="slider"><label for="c-seg">Segundos por plano <b id="c-seg-v">4,0 s</b></label>
+        <input id="c-seg" type="range" min="4" max="15" step="0.5" value="4"></div>
+      <div class="slider">
+        <label for="c-intentos">Intentos por plano <b id="c-intentos-v">2,5×</b></label>
+        <input id="c-intentos" type="range" min="10" max="50" step="1" value="25"></div>
+      <div class="slider">
+        <label for="c-fijas">Planos de 5 frames o menos <b id="c-fijas-v">0 de 28</b></label>
+        <input id="c-fijas" type="range" min="0" max="60" value="0"></div>
+      <div class="campo"><label for="c-modelo">Modelo de imagen</label>
+        <select id="c-modelo">
+          <option value="nano_banana_pro">Nano Banana Pro · 2k</option>
+          <option value="seedream_v5_pro">Seedream 5 Pro · 2k</option>
+          <option value="flux_2_pro">Flux 2 Pro · 2k</option>
+        </select></div>
+      <div class="campo"><label for="c-res">Resolucion del video</label>
+        <select id="c-res">
+          <option value="480p">480p</option>
+          <option value="720p" selected>720p — la nativa</option>
+          <option value="1080p">1080p</option>
+          <option value="4k">4K</option>
+        </select></div>
+    </div>
+    <div class="total">
+      <div class="caja teoria"><span>A la primera</span><b id="c-teoria">0 USD</b></div>
+      <div class="caja real"><span>Realista</span><b id="c-real">0 USD</b></div>
+      <div class="caja"><span>Duracion</span><b id="c-dur" style="font-size:1.2rem;
+        color:var(--tinta2)">0 s</b></div>
+    </div>
+    <p class="nota" id="c-nota"></p>
+  </div>
+
+  <div class="aviso rojo">
+    <p><b>La cifra que importa es la de la derecha.</b> Nadie aprueba un plano a la primera.
+    Dos o tres intentos por plano es lo normal, y en los bustos son mas.</p>
+  </div>
+
+  <h2>Como se ahorra de verdad</h2>
+  <div class="prosa">
+  <ul>
+    <li><b>Los planos de cinco frames o menos no se animan.</b> Son imagenes fijas. En
+      <code>black_sand</code> son 19 de 53: gastar cuatro segundos de video para usar dos
+      frames es tirar el dinero. Sube el mando y mira lo que cambia.</li>
+    <li><b>Prueba a 6 s y 720p antes de la version larga.</b> Un plano largo que sale mal
+      cuesta lo mismo que tres pruebas cortas.</li>
+    <li><b>Genera a 720p y sube a 1080p solo el pase final.</b> Seedance 2.5 renderiza
+      nativo a 720p: lo que llama 1080p es un reescalado del proveedor, no detalle nuevo.
+      Y 4K de verdad solo lo da Seedance 2.0.</li>
+  </ul>
+  </div>
+
+  <h2>Que necesitas</h2>
+  {tabla(["Para que", "Herramienta", "Alternativa", "Nota"],
+         [[f"<b>{e(h[0])}</b>", f"<code>{e(h[1])}</code>", f"<code>{e(h[2])}</code>", e(h[3])]
+          for h in HERRAMIENTAS])}
 </section>"""
 
 
 def vista_automatico() -> str:
-    filas = tabla(["Paso manual", "Comando equivalente", "Que hace"], [
-        ["Extraer los planos de un video de referencia",
+    filas = tabla(["Paso manual", "Comando", "Que hace"], [
+        ["Extraer los planos de un referente",
          "<code>python3 tools/extraer_frames.py</code>",
          "Detecta cortes con ffmpeg y saca los frames"],
         ["Ver la paleta de cada acto", "<code>python3 tools/paleta.py</code>",
@@ -386,110 +553,155 @@ def vista_automatico() -> str:
          "Monta <code>shotlist.md</code> desde los datos y las anotaciones"],
         ["Escribir los prompts de los 28 planos",
          "<code>python3 tools/generar_prompts.py</code>",
-         "Ensambla estilo + personaje + ubicacion + encuadre en una ficha por plano"],
+         "Ensambla estilo + personaje + ubicacion + encuadre, una ficha por plano"],
         ["Saber lo que va a costar", "<code>python3 -m pipeline coste on_the_road</code>",
          "Estima sin lanzar nada"],
         ["Generar los start frames", "<code>python3 -m pipeline frames on_the_road</code>",
-         "Uno por plano, 4 a la vez"],
+         "Uno por plano, cuatro a la vez"],
         ["Aprobar un start frame",
-         "<code>echo &quot;on_the_road_07_macro-llave.png&quot; &gt;&gt; assets/frames/aprobados.txt</code>",
-         "<b>Despues de mirarlo.</b> Sin esto el paso siguiente se niega"],
-        ["Animar los planos aprobados", "<code>python3 -m pipeline video on_the_road</code>",
+         "<code>echo &quot;on_the_road_07_macro-llave.png&quot; &gt;&gt; "
+         "assets/frames/aprobados.txt</code>",
+         "<b>Despues de mirarlo.</b> Sin esto, el paso siguiente se niega"],
+        ["Animar los aprobados", "<code>python3 -m pipeline video on_the_road</code>",
          "Se salta los planos sin start frame aprobado"],
         ["Preparar la lista de montaje",
          "<code>python3 tools/generar_lista_montaje.py on_the_road</code>",
          "Saca el manifiesto desde la shotlist"],
-        ["Montar", "<code>./scripts/montage.sh --lista montaje/lista_on_the_road.tsv</code>",
+        ["Montar",
+         "<code>./scripts/montage.sh --lista montaje/lista_on_the_road.tsv</code>",
          "Concatena, inserta, rampas, musica, y exporta 16:9 y 9:16"],
         ["Ver que haria sin hacerlo", "<code>… --dry-run</code>",
          "Funciona en el pipeline y en montage.sh"],
     ])
+    reglas = tabla(["", "Regla", "Que pasa si la rompes"], [
+        ["1", "No se anima sin start frame <b>aprobado</b>",
+         "Se salta el plano y te dice cual y por que"],
+        ["2", "Primero 6 s a 720p, luego la version larga",
+         "No lanza la larga si no hay una prueba aprobada"],
+        ["3", "Seedance 2.5 es nativo 720p y no da 4K",
+         "Rechaza pedir 4K a un modelo que solo lo reescala"],
+        ["4", "Maximo cuatro trabajos a la vez",
+         "Encola. Ante un 429 reintenta con espera creciente"],
+        ["5", "Todo trabajo se anota en <code>runs/log.jsonl</code>",
+         "Puedes reproducir un plano que salio bien con sus parametros exactos"],
+        ["6", "Presupuesto por ejecucion y por trabajo",
+         "Para en seco y te dice cuanto llevas"],
+    ])
     return f"""
 <section id="automatico" hidden>
   <h1>Modo automatico</h1>
-  <p class="intro">Todo lo que la guia explica a mano tiene su comando. Es opcional: el
+  <p class="entrada">Todo lo que la guia explica a mano tiene su comando. Es opcional: el
   sistema funciona igual abriendo la web de tu proveedor y pegando prompts. Pero si vas a
   hacer mas de un video, esto te ahorra las tres horas de copiar y pegar.</p>
   <div class="aviso rojo">
-    <p><b>Sin <code>video-ia/.env</code> no se llama a ninguna API.</b> El pipeline arranca en
-    modo simulacion: te dice que lanzaria y cuanto costaria, y para. Es lo que quieres la
+    <p><b>Sin <code>video-ia/.env</code> no se llama a ninguna API.</b> El pipeline arranca
+    en modo simulacion: te dice que lanzaria y cuanto costaria, y para. Es lo que quieres la
     primera vez.</p>
   </div>
   {filas}
   <h2>Las seis reglas que impone el codigo</h2>
-  <p>No son consejos de un README: si las rompes, el pipeline se niega a seguir.</p>
-  {tabla(["", "Regla", "Que pasa si la rompes"], [
-      ["1", "No se anima sin start frame <b>aprobado</b>",
-       "Se salta el plano y te dice cual y por que"],
-      ["2", "Primero 6 s a 720p, luego la version larga",
-       "No lanza la version larga si no hay una prueba aprobada"],
-      ["3", "Seedance 2.5 es nativo 720p y no da 4K",
-       "Rechaza pedir 4K a un modelo que solo lo reescala"],
-      ["4", "Maximo 4 trabajos a la vez",
-       "Encola. Ante un 429 reintenta con espera creciente"],
-      ["5", "Todo trabajo se anota en <code>runs/log.jsonl</code>",
-       "Puedes reproducir un plano que salio bien, con sus parametros exactos"],
-      ["6", "Presupuesto por ejecucion y por trabajo",
-       "Para en seco y te dice cuanto llevas"],
-  ])}
+  <p class="prosa">No son consejos de un README: si las rompes, el pipeline se niega a
+  seguir. Un pipeline que solo avisa acaba lanzando 28 videos sin start frame la primera
+  noche que alguien tiene prisa.</p>
+  {reglas}
   <div class="aviso">
-    <p><b>&laquo;Aprobado&raquo; no es &laquo;existe el archivo&raquo;.</b> El nombre tiene que
-    estar en <code>assets/frames/aprobados.txt</code>. Mirar una imagen y decidir si vale es un
-    paso humano, y el pipeline no puede hacerlo por ti. Aprobar sin mirar es lo mismo que no
-    tener la regla.</p>
+    <p><b>&laquo;Aprobado&raquo; no es &laquo;existe el archivo&raquo;.</b> El nombre tiene
+    que estar en <code>assets/frames/aprobados.txt</code>. Mirar una imagen y decidir si
+    vale es un paso humano, y el pipeline no puede hacerlo por ti. Aprobar sin mirar es lo
+    mismo que no tener la regla.</p>
   </div>
   <h2>Por que no hay Midjourney</h2>
-  <p>Midjourney no tiene API oficial y sus terminos prohiben la automatizacion, asi que no hay
-  forma legitima de meterlo aqui. Para el look pintado, <code>seedream_v5_pro</code> o
-  <code>nano_banana_pro</code> con el bloque de estilo dan un resultado equivalente. Midjourney
-  se usa <b>a mano</b>, y solo para style frames, si tu decides hacerlo.</p>
+  <p class="prosa">Midjourney no tiene API oficial y sus terminos prohiben la
+  automatizacion, asi que no hay forma legitima de meterlo aqui. Para el look pintado,
+  <code>seedream_v5_pro</code> o <code>nano_banana_pro</code> con el bloque de estilo dan
+  un resultado equivalente. Midjourney se usa <b>a mano</b>, y solo para style frames, si
+  tu decides hacerlo.</p>
 </section>"""
 
 
-# ---------------------------------------------------------------- documento
+def vista_glosario() -> str:
+    grupos: dict[str, list] = {}
+    for termino, grupo, definicion in GLOSARIO:
+        grupos.setdefault(grupo, []).append((termino, definicion))
+    partes = [f"<h2>{e(g)}</h2>"
+              + tabla(["Termino", "Que significa"], [[f"<b>{e(t)}</b>", d] for t, d in items])
+              for g, items in grupos.items()]
+    return f"""
+<section id="glosario" hidden>
+  <h1>Glosario</h1>
+  <p class="entrada">Sin dar nada por sabido. Si un termino de la guia no esta aqui y no lo
+  entiendes, es un fallo de la guia.</p>
+  {''.join(partes)}
+</section>"""
+
+
+# ================================================================ documento
 def construir() -> str:
-    d = {v: datos(v) for v in ("on_the_road", "black_sand")}
-    tabs = [("inicio", "Inicio"), ("anatomia", "Anatomia"), ("sistema", "El sistema"),
-            ("replicar", "Mi personaje"), ("errores", "Errores"),
+    d = {v: datos(v) for v in VIDEOS}
+    tabs = [("visor", "El ritmo"), ("anatomia", "Anatomia"), ("sistema", "El sistema"),
+            ("replicar", "Mi personaje"), ("coste", "Coste"), ("errores", "Errores"),
             ("automatico", "Modo automatico"), ("glosario", "Glosario")]
     nav = "".join(
-        f'<button data-vista="{i}" aria-selected="{"true" if i=="inicio" else "false"}">'
-        f'{e(t)}</button>' for i, t in tabs)
-    n_pasos = len(PASOS)
+        f'<button type="button" data-vista="{i}" role="tab" '
+        f'aria-selected="{"true" if i == "visor" else "false"}">{e(t)}</button>'
+        for i, t in tabs)
+
+    paquete = json.dumps(planos_json(d), ensure_ascii=False, separators=(",", ":"))
+    tour = json.dumps(TOUR, ensure_ascii=False, separators=(",", ":"))
 
     return f"""<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sistema para hacer videos de IA de calidad cinematografica</title>
-<meta name="description" content="Guia paso a paso para producir videos de animacion
-pintada con IA, sacada de diseccionar dos referentes plano a plano.">
+<title>Sala de Montaje</title>
+<meta name="description" content="Sistema paso a paso para producir video de animacion
+pintada con IA, sacado de diseccionar dos referentes plano a plano.">
+<meta name="color-scheme" content="dark">
+<style>{css_fuentes()}</style>
 <style>{CSS}</style>
 </head>
 <body>
 <header class="top">
-  <div class="fila"><div class="marca">Sistema de video con <b>IA</b></div></div>
-  <nav class="tabs" aria-label="Secciones">{nav}</nav>
+  <div class="fila"><div class="marca"><i class="punto"></i>Sala de montaje</div></div>
+  <nav class="tabs" role="tablist" aria-label="Secciones">{nav}</nav>
 </header>
 <main>
-{vista_inicio(d)}
+{vista_visor(d)}
 {vista_anatomia(d)}
 {vista_sistema(d)}
 {vista_replicar()}
+{vista_coste()}
 {vista_errores()}
 {vista_automatico()}
 {vista_glosario()}
 </main>
 <footer>
   <p>Generado por <code>tools/generar_guia.py</code> desde el analisis de
-  <code>analysis/</code>. Para actualizarla, cambia la shotlist y vuelve a correrlo.</p>
+  <code>analysis/</code>. Los tiempos, las paletas y el ritmo estan medidos sobre los
+  archivos con <code>ffmpeg</code>, no estimados.</p>
 </footer>
+
+<div class="lb" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Plano ampliado">
+  <button class="cerrar" type="button" aria-label="Cerrar">&#10005;</button>
+  <button class="nav prev" type="button" aria-label="Plano anterior">&#8249;</button>
+  <button class="nav next" type="button" aria-label="Plano siguiente">&#8250;</button>
+  <figure>
+    <img alt="" width="1280" height="720">
+    <figcaption>
+      <span class="tit"></span><span class="dat"></span>
+      <p class="desc"></p>
+    </figcaption>
+  </figure>
+  <p class="pista"></p>
+</div>
+
 <div class="barra">
-  <span class="cuenta">0 de {n_pasos} pasos</span>
+  <span class="cuenta">0/{len(PASOS)} pasos</span>
   <span class="pista"><span class="relleno"></span></span>
   <button type="button">reiniciar</button>
 </div>
+<script>window.__PLANOS__={paquete};window.__TOUR__={tour};</script>
 <script>{JS}</script>
 </body>
 </html>
@@ -499,5 +711,4 @@ pintada con IA, sacada de diseccionar dos referentes plano a plano.">
 if __name__ == "__main__":
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     SALIDA.write_text(construir(), encoding="utf-8")
-    kb = SALIDA.stat().st_size / 1024
-    print(f"{SALIDA}  {kb:.0f} KB")
+    print(f"{SALIDA}  {SALIDA.stat().st_size / 1024:.0f} KB")

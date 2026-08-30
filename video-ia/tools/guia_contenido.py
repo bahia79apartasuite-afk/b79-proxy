@@ -729,3 +729,68 @@ PLANTILLAS_FORM = [
      "unchanged from the start frame. No text, no watermark, no logo, no subtitles.\n"
      "SFX: [dos o tres sonidos concretos]."),
 ]
+
+# ---------------------------------------------------------------- tour animado
+# El recorrido que se reproduce en la vista del sistema. Cada etapa dice que se hace,
+# que entra (lo que ya tenias aprobado) y que sale (lo nuevo). Ver como los artefactos
+# se acumulan es lo que hace entender por que el orden no es negociable.
+TOUR = [
+    {"nom": "Guion", "paso": "guion",
+     "que": "Tres o cuatro frases: que pasa, quien lo hace, donde. Si no cabe en cuatro "
+            "frases, todavia no lo tienes claro y no es momento de generar nada.",
+     "entra": [], "sale": ["guion.txt"]},
+    {"nom": "Shotlist", "paso": "guion",
+     "que": "Una fila por plano: tipo, camara, sujeto, accion y por que existe. Si no sabes "
+            "contestar a lo ultimo, el plano sobra. Esta tabla manda sobre todo lo demas.",
+     "entra": ["guion.txt"], "sale": ["shotlist.md"]},
+    {"nom": "Nombres", "paso": "nombres",
+     "que": "Decides como se llama todo antes de generar la primera imagen. Dos digitos y "
+            "un slug: asi el orden alfabetico es el orden del montaje.",
+     "entra": ["shotlist.md"], "sale": ["07_macro-llave"]},
+    {"nom": "Ubicaciones", "paso": "ubicaciones",
+     "que": "El mundo primero, por la luz. Tres planchas — amplio, medio, detalle — con la "
+            "frase de luz al final, que es la que hara que el personaje encaje despues.",
+     "entra": ["shotlist.md"], "sale": ["ubicacion/ref/", "hora del dia"]},
+    {"nom": "Personajes", "paso": "personajes",
+     "que": "Bloque de identidad de 70 a 110 palabras y seis planchas con la misma luz y "
+            "el mismo fondo neutro. De aqui sale el Element que sostiene la cara.",
+     "entra": ["ubicacion/ref/"], "sale": ["personaje/ref/", "element_id"]},
+    {"nom": "Props", "paso": "props",
+     "que": "Los heroe primero. Un objeto se genera aparte y aislado, nunca dentro de su "
+            "plano: los tres macros de rueda tienen que ser la misma rueda.",
+     "entra": ["personaje/ref/"], "sale": ["prop/ref/"]},
+    {"nom": "Start frames", "paso": "frames",
+     "que": "Una imagen fija por plano: estilo, luego identidad, luego encuadre. Aqui es "
+            "donde se aprueba o se tira, porque en video cuesta cinco veces mas arreglarlo.",
+     "entra": ["element_id", "ubicacion/ref/", "prop/ref/"],
+     "sale": ["assets/frames/07.png"]},
+    {"nom": "Aprobar", "paso": "frames",
+     "que": "Miras cada start frame y decides. Nada se anima sin este paso, y el pipeline "
+            "lo impone: si el nombre no esta en aprobados.txt, se niega a lanzar el video.",
+     "entra": ["assets/frames/07.png"], "sale": ["aprobados.txt"]},
+    {"nom": "Animar", "paso": "video",
+     "que": "Un clip por plano, una toma continua, nunca describiendo un corte. Prueba a "
+            "6 s y 720p, miras, y solo entonces la version larga.",
+     "entra": ["aprobados.txt"], "sale": ["clips/07.mp4"]},
+    {"nom": "Montaje", "paso": "montaje",
+     "que": "Concatenar en el orden de la shotlist, recortar cada plano del centro de su "
+            "clip, meter las vinetas como fijas, la musica con ducking, y exportar.",
+     "entra": ["clips/07.mp4", "shotlist.md"], "sale": ["final_16x9.mp4", "final_9x16.mp4"]},
+]
+
+# ---------------------------------------------------------------- capas del prompt
+# (rotulo, campo que la enciende, color, plantilla)
+CAPAS_PROMPT = [
+    ("1 · Estilo — va primero porque es lo que no puede fallar", "estilo", "var(--ambar)",
+     "{{estilo}}"),
+    ("2 · Identidad — identica en todos los prompts de este personaje", "cara",
+     "var(--t-busto)",
+     "CHARACTER — {{nombre}}: {{edad}}, {{piel}}. {{cara}}. {{pelo}}. {{marca}}. "
+     "{{ropa}}.\nNEVER: {{nunca}}."),
+    ("3 · Ubicacion — la luz de aqui manda sobre la del personaje", "ubicacion",
+     "var(--t-amplio)", "{{ubicacion}}"),
+    ("4 · Encuadre y accion congelada — el instante, no el movimiento", "accion",
+     "var(--cian)",
+     "Bust portrait of {{nombre}} in the location above, the moment frozen mid-action:\n"
+     "{{accion}}. Shallow depth of field, the background out of focus. 16:9."),
+]

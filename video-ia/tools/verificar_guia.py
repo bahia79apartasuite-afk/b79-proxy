@@ -20,7 +20,8 @@ from playwright.sync_api import sync_playwright
 RAIZ = Path(__file__).resolve().parent.parent
 GUIA = RAIZ / "guia" / "index.html"
 CAPTURAS = RAIZ / "guia" / "_capturas"
-VISTAS = ["inicio", "anatomia", "sistema", "replicar", "errores", "automatico", "glosario"]
+VISTAS = ["visor", "anatomia", "sistema", "replicar", "coste", "errores", "automatico",
+          "glosario"]
 # El entorno trae Chromium preinstalado con un numero de build que no tiene por que
 # coincidir con el que espera la version de playwright que haya. Se busca.
 def _buscar_navegador() -> str | None:
@@ -62,7 +63,8 @@ def main() -> int:
                 pag.wait_for_timeout(250)
                 if vista == "sistema":
                     # con el acordeon cerrado la captura no prueba nada del contenido
-                    pag.click("#paso-personajes .cab")
+                    if pag.evaluate("() => document.querySelector('#paso-personajes .contenido').hidden"):
+                        pag.click("#paso-personajes .cab")
                     pag.wait_for_timeout(300)
                 # las imagenes son lazy: hay que bajar para que carguen antes de capturar
                 pag.evaluate("""() => new Promise(r => {
@@ -75,10 +77,12 @@ def main() -> int:
                 pag.screenshot(path=str(CAPTURAS / f"{etiqueta}_{vista}.png"), full_page=True)
 
             # --- imagenes ---
+            # una <img> sin src todavia no es una imagen rota: es el hueco del lightbox
             rotas = pag.evaluate("""() => Array.from(document.images)
-                .filter(i => !i.complete || i.naturalWidth === 0)
+                .filter(i => i.getAttribute('src') && (!i.complete || i.naturalWidth === 0))
                 .map(i => i.getAttribute('src'))""")
-            total_img = pag.evaluate("() => document.images.length")
+            total_img = pag.evaluate(
+                "() => Array.from(document.images).filter(i => i.getAttribute('src')).length")
             if rotas:
                 fallos.append(f"[{etiqueta}] {len(rotas)} imagenes rotas: {rotas[:5]}")
             print(f"[{etiqueta}] {total_img} imagenes, {len(rotas)} rotas")
@@ -102,14 +106,14 @@ def main() -> int:
                     x.dispatchEvent(new Event('change', {bubbles:true})); });
             }""")
             pag.wait_for_timeout(200)
-            guardado = pag.evaluate("() => localStorage.getItem('b79-video-ia-v1')")
+            guardado = pag.evaluate("() => localStorage.getItem('b79-video-ia-v2')")
             pag.reload(wait_until="load")
             pag.wait_for_timeout(500)
             marcados = pag.evaluate("""() => Array.from(
                 document.querySelectorAll('input[data-paso]'))
                 .filter(c => c.checked).map(c => c.dataset.paso)""")
             vista_recordada = pag.evaluate(
-                "() => JSON.parse(localStorage.getItem('b79-video-ia-v1')||'{}').vista")
+                "() => JSON.parse(localStorage.getItem('b79-video-ia-v2')||'{}').vista")
             if len(marcados) != 2:
                 fallos.append(f"[{etiqueta}] los checkboxes no persisten: {marcados}")
             print(f"[{etiqueta}] {n_checks} checkboxes; tras recargar siguen marcados "
@@ -130,6 +134,103 @@ def main() -> int:
                 fallos.append(f"[{etiqueta}] han quedado marcadores {{{{...}}}} sin sustituir")
             print(f"[{etiqueta}] formulario en vivo: "
                   f"{'OK' if 'EL MENSAJERO' in texto and not hueco else 'MAL'}")
+
+            # --- el visor reproduce a la duracion real ---
+            pag.click('nav.tabs button[data-vista="visor"]')
+            pag.wait_for_timeout(300)
+            primero = pag.inner_text("#el-visor .contador")
+            pag.click("#play")
+            pag.wait_for_timeout(2600)          # 2.23 + 0.83 s = dos planos ya pasados
+            durante = pag.inner_text("#el-visor .contador")
+            reproduciendo = pag.evaluate(
+                "() => document.getElementById('el-visor').classList.contains('play')")
+            pag.click("#play")
+            pag.wait_for_timeout(200)
+            parado = pag.evaluate(
+                "() => !document.getElementById('el-visor').classList.contains('play')")
+            visible = pag.evaluate(
+                "() => document.querySelectorAll('#el-visor .pantalla img.on').length")
+            if primero == durante or not reproduciendo or not parado or visible != 1:
+                fallos.append(f"[{etiqueta}] el visor no reproduce: {primero!r} -> {durante!r}, "
+                              f"play={reproduciendo} pausa={parado} frames visibles={visible}")
+            print(f"[{etiqueta}] visor: {primero.strip()} -> {durante.strip()}, "
+                  f"1 frame visible: {visible == 1}")
+
+            # --- la tira de tiempo es proporcional a la duracion ---
+            anchos = pag.evaluate("""() => {
+                const t = document.querySelector('#el-visor .tira:not([hidden])');
+                return Array.from(t.querySelectorAll('.blk'))
+                    .map(b => Math.round(b.getBoundingClientRect().width * 10) / 10);
+            }""")
+            if len(anchos) < 20 or max(anchos) <= min(anchos):
+                fallos.append(f"[{etiqueta}] la tira no es proporcional: {anchos[:6]}")
+            print(f"[{etiqueta}] tira: {len(anchos)} bloques, de {min(anchos)} a {max(anchos)} px")
+
+            # --- saltar a un plano por la tira ---
+            pag.click('#el-visor .tira:not([hidden]) .blk[data-n="9"]')
+            pag.wait_for_timeout(250)
+            saltado = pag.inner_text("#el-visor .contador")
+            if "09" not in saltado:
+                fallos.append(f"[{etiqueta}] la tira no salta de plano: {saltado!r}")
+            print(f"[{etiqueta}] salto por la tira: {saltado.strip()}")
+
+            # --- lightbox ---
+            pag.click('nav.tabs button[data-vista="anatomia"]')
+            pag.wait_for_timeout(250)
+            pag.click("#planos-on_the_road .plano:nth-child(3)")
+            pag.wait_for_timeout(350)
+            abierto = pag.evaluate("() => !document.getElementById('lightbox').hidden")
+            tit = pag.inner_text("#lightbox .tit") if abierto else ""
+            pag.keyboard.press("ArrowRight")
+            pag.wait_for_timeout(250)
+            tit2 = pag.inner_text("#lightbox .tit") if abierto else ""
+            src = pag.get_attribute("#lightbox img", "src") or ""
+            pag.keyboard.press("Escape")
+            pag.wait_for_timeout(250)
+            cerrado = pag.evaluate("() => document.getElementById('lightbox').hidden")
+            if not abierto or not cerrado or tit == tit2 or not src:
+                fallos.append(f"[{etiqueta}] lightbox mal: abre={abierto} cierra={cerrado} "
+                              f"{tit!r}->{tit2!r} src={src!r}")
+            print(f"[{etiqueta}] lightbox: {tit.strip()} -> {tit2.strip()}, cierra con Esc")
+
+            # --- tour animado ---
+            pag.click('nav.tabs button[data-vista="sistema"]')
+            pag.wait_for_timeout(250)
+            e0 = pag.inner_text("#tour .escena")
+            pag.click("#tour-next")
+            pag.wait_for_timeout(350)
+            e1 = pag.inner_text("#tour .escena")
+            vivas = pag.evaluate("() => document.querySelectorAll('#tour .et.viva').length")
+            destacado = pag.evaluate("() => document.querySelectorAll('.paso.destacado').length")
+            if e0 == e1 or vivas != 1:
+                fallos.append(f"[{etiqueta}] el tour no avanza: vivas={vivas}")
+            print(f"[{etiqueta}] tour: avanza={e0 != e1}, 1 etapa viva={vivas == 1}, "
+                  f"paso destacado={destacado}")
+
+            # --- calculadora de coste ---
+            pag.click('nav.tabs button[data-vista="coste"]')
+            pag.wait_for_timeout(250)
+            antes = pag.inner_text("#c-real")
+            pag.evaluate("""() => { const s = document.getElementById('c-planos');
+                s.value = 60; s.dispatchEvent(new Event('input', {bubbles:true})); }""")
+            pag.wait_for_timeout(200)
+            despues = pag.inner_text("#c-real")
+            if antes == despues or "USD" not in despues:
+                fallos.append(f"[{etiqueta}] la calculadora no responde: {antes!r} -> {despues!r}")
+            print(f"[{etiqueta}] calculadora: {antes.strip()} -> {despues.strip()}")
+
+            # --- las capas del prompt se encienden al rellenar ---
+            pag.click('nav.tabs button[data-vista="replicar"]')
+            pag.wait_for_timeout(250)
+            encendidas0 = pag.evaluate("() => document.querySelectorAll('#replicar .capa.on').length")
+            pag.fill("#f-cara", "square jaw, thin eyebrows, grey eyes")
+            pag.fill("#f-ubicacion", "LOCATION — DOCK: concrete, four lamps, wet floor")
+            pag.wait_for_timeout(300)
+            encendidas1 = pag.evaluate("() => document.querySelectorAll('#replicar .capa.on').length")
+            if encendidas1 <= encendidas0:
+                fallos.append(f"[{etiqueta}] las capas no se encienden: "
+                              f"{encendidas0} -> {encendidas1}")
+            print(f"[{etiqueta}] capas del prompt: {encendidas0} -> {encendidas1} encendidas")
 
             ctx.close()
         nav.close()

@@ -3,8 +3,13 @@
 Sale de diseccionar dos videos de referencia plano a plano con `ffmpeg` y convertir lo que se
 ve en un procedimiento repetible: guia, plantillas de prompt, scripts de montaje y un pipeline.
 
-**Empieza por aqui:** abre `guia/index.html` en el navegador. Es la guia completa, funciona sin
-internet y no necesita nada instalado.
+**Empieza por aqui:** abre `guia/index.html` en el navegador y dale al play. Es la guia
+completa, funciona sin internet y no necesita nada instalado.
+
+Lo primero que ves es un **visor que reproduce los planos de un referente a su duracion
+real**. El ritmo no se explica, se siente: veras que `on_the_road` acelera sin parar y que
+`black_sand` mete rafagas de un frame que se acaban antes de que las registres. Debajo, una
+tira donde cada plano ocupa lo que dura, asi que la estructura se ve de un vistazo.
 
 ```
 open guia/index.html          # macOS
@@ -15,7 +20,7 @@ xdg-open guia/index.html      # Linux
 
 ```
 video-ia/
-  guia/index.html      LA GUIA. Siete vistas, autocontenida, para principiante
+  guia/index.html      LA GUIA. Ocho vistas, autocontenida, para principiante
   analysis/            la diseccion de los dos referentes (shotlist, paleta, estilo)
   characters/          hojas de personaje: identidad inmutable + 6 planchas
   locations/           ubicaciones: descripcion inmutable + planchas + horas del dia
@@ -81,7 +86,15 @@ cd tools && python3 generar_guia.py        # genera guia/index.html
 python3 tools/verificar_guia.py            # la abre en Chromium y comprueba que funciona
 ```
 
-`tools/verificar_guia.py` necesita ademas `pip install playwright`.
+`tools/verificar_guia.py` necesita ademas `pip install playwright`. Abre la guia en un
+Chromium de verdad y comprueba lo que un test de humo no ve: que el visor reproduce, que la
+tira es proporcional a las duraciones, que el lightbox navega con el teclado, que el tour
+avanza, que la calculadora responde, que las capas del prompt se encienden, que no hay ni un
+recurso externo y que los checkboxes sobreviven a una recarga.
+
+Las tipografias (`Archivo` para la interfaz, `Newsreader` para la prosa) se descargan una vez
+con `tools/guia_fuentes.py` y quedan cacheadas en `guia/_fuentes.json`, que si entra en git:
+regenerar la guia no necesita red.
 
 ## Montar
 
