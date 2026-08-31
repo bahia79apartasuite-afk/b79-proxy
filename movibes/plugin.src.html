@@ -1,0 +1,925 @@
+<title>MOVIBES para Premiere</title>
+<style>
+__FIGTREE__
+</style>
+<style>
+/* ============================================================
+   Sistema MOVIBES, sin cambios. La landing del plugin se
+   construye con los mismos siete colores y la misma tipografía.
+   Los grises que aparecen dentro de la maqueta del programa son
+   cromo de pantalla, no colores de marca.
+   ============================================================ */
+:root{
+  color-scheme:light only;
+  --tinta:#0D0D0D; --papel:#FFFFFF; --hueso:#F4F1EC;
+  --rojo:#D91F11; --sangre:#7A1210; --humo:#8A8A8A; --hilo:#E3E0DB;
+  --e:cubic-bezier(.16,1,.3,1);
+  --barra:52px;
+  --tipo:Figtree,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  /* cromo del programa de edición */
+  --nle-0:#101010; --nle-1:#181818; --nle-2:#212121; --nle-3:#2C2C2C; --nle-4:#3A3A3A;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:#FFF;color-scheme:light only;scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--tipo);font-weight:400;
+  font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+svg{display:block}
+img,video{max-width:100%}
+:focus-visible{outline:2px solid var(--rojo);outline-offset:3px}
+h1,h2,h3,h4,p{margin:0}
+.et{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:500}
+.et-fina{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:400;color:var(--humo)}
+.crecer{flex:1}
+.num{font-variant-numeric:tabular-nums}
+.lim{max-width:1180px;margin:0 auto;width:100%}
+
+@keyframes sube{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.rev{opacity:0;transform:translateY(20px)}
+.rev.visto{animation:sube .85s var(--e) forwards}
+@keyframes vaiven{to{transform:translateX(-200px)}}
+@media (prefers-color-scheme:dark){html,body{background:#FFF;color:#0D0D0D}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important}
+  .rev{opacity:1;transform:none}
+}
+
+/* ============================================================
+   LA M QUE SE LLENA
+   El monograma de la cabecera es el medidor de avance: el rojo
+   sube por dentro de la letra a medida que se baja, y queda
+   lleno justo al tocar el final. Es la misma mecánica del
+   lettering líquido del sistema, atada al scroll en vez de a un
+   temporizador. Se repite en grande al cerrar la página.
+   ============================================================ */
+header{position:fixed;top:0;left:0;right:0;z-index:120;height:var(--barra);background:var(--papel);
+  display:flex;align-items:center;gap:13px;padding:0 30px;
+  border-bottom:1px solid transparent;transition:border-color .4s var(--e)}
+header.desplazado{border-bottom-color:var(--hilo)}
+.medidor{width:26px;height:auto;flex:none;overflow:visible}
+.medidor .hueco{fill:#EBE8E3}
+.medidor .olita{animation:vaiven 3s linear infinite}
+.marcaTexto{font-size:12px;font-weight:900;letter-spacing:.13em}
+header nav{display:flex;gap:24px;align-items:center}
+header nav a{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--humo);
+  font-weight:500;transition:color .3s var(--e)}
+header nav a:hover{color:var(--tinta)}
+header .avance{font-variant-numeric:tabular-nums}
+@media (max-width:860px){header nav{display:none}}
+
+/* ============================================================
+   BOTONES Y PIEZAS COMUNES
+   ============================================================ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:var(--rojo);
+  color:#FFF;padding:17px 28px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:700;position:relative;overflow:hidden;isolation:isolate;
+  transition:transform .35s var(--e)}
+.btn::before{content:'';position:absolute;inset:0;background:var(--sangre);transform:translateY(101%);
+  transition:transform .5s var(--e);z-index:-1}
+.btn:hover::before{transform:translateY(0)}
+.btn:hover{transform:translateY(-2px)}
+.btn svg,.btn-linea svg{width:15px;height:auto;flex:none;stroke:currentColor;fill:none;
+  stroke-width:1.2;transition:transform .45s var(--e)}
+.btn:hover svg,.btn-linea:hover svg{transform:translateX(5px)}
+.btn.ancho{width:100%}
+.btn-linea{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:16px 26px;
+  border:1px solid var(--tinta);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:500;transition:background .4s var(--e),color .4s var(--e)}
+.btn-linea:hover{background:var(--tinta);color:var(--papel)}
+.btn-linea.claro{border-color:#3A3A3A;color:#FFF}
+.btn-linea.claro:hover{background:#FFF;color:var(--tinta)}
+
+section{padding:96px 40px}
+.cab{display:flex;align-items:baseline;gap:20px;padding-bottom:16px;border-bottom:1px solid var(--tinta);
+  margin-bottom:40px}
+.cab h2{font-size:clamp(24px,3.4vw,38px);font-weight:300;letter-spacing:-.03em;line-height:1.05;
+  text-wrap:balance}
+.cab h2 b{font-weight:900}
+.cab.clara{border-bottom-color:#333}
+.txt{font-size:14.5px;line-height:1.72;color:var(--humo)}
+.txt b{color:var(--tinta);font-weight:700}
+.oscura .txt{color:#9A9A9A}
+.oscura .txt b{color:#FFF}
+.dato b{display:block;font-size:clamp(28px,3.6vw,44px);font-weight:900;letter-spacing:-.045em;
+  line-height:1;font-variant-numeric:tabular-nums}
+.dato span{display:block;margin-top:7px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--humo)}
+
+.cine{position:relative;background:var(--tinta);overflow:hidden}
+.cine video{width:100%;height:100%;object-fit:cover;display:block}
+.cine .fw{position:absolute;right:12px;bottom:11px;width:14px;z-index:3;opacity:.85;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+.cine .rot{position:absolute;left:12px;top:11px;z-index:3;color:rgba(255,255,255,.82);font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;font-weight:500;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+@media (max-width:820px){section{padding:64px 20px}header{padding:0 18px}}
+</style>
+<style>
+/* ============================================================
+   LA DEMO DE CINCO SEGUNDOS
+   Sin una sola palabra: material desordenado → se enciende la M →
+   una pasada roja descarta lo que no sirve → lo bueno se ordena
+   solo en la línea de tiempo → el audio marca los cortes → listo.
+   Todo cuelga de un mismo ciclo de 5 s para que no se desincronice:
+   cada capa usa sus propios porcentajes del mismo reloj.
+   ============================================================ */
+.demo{position:relative;aspect-ratio:16/9;background:var(--nle-0);overflow:hidden;
+  border:1px solid var(--nle-3);isolation:isolate}
+.demo *{pointer-events:none}
+.demo .escena{position:absolute;inset:0;animation:demoCiclo 5s linear infinite}
+@keyframes demoCiclo{0%,3%{opacity:0}6%,95%{opacity:1}100%{opacity:0}}
+
+/* rejilla de fondo, muy tenue: da la sensación de mesa de montaje */
+.demo .malla{position:absolute;inset:0;opacity:.5;
+  background:repeating-linear-gradient(90deg,var(--nle-1) 0 1px,transparent 1px 44px),
+             repeating-linear-gradient(0deg,var(--nle-1) 0 1px,transparent 1px 44px)}
+
+/* --- los trozos de material --- */
+.demo .clip{position:absolute;height:11.5%;border-radius:1px;background:var(--nle-4);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+.demo .clip::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#5A5A5A}
+.demo .sirve{animation:ordenar 5s var(--e) infinite}
+.demo .sirve.marcado::after{background:var(--rojo)}
+@keyframes ordenar{
+  0%      {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.5}
+  12%     {transform:translate(var(--dx),calc(var(--dy) + 5px)) rotate(var(--rot)) scale(.94);opacity:.5}
+  24%     {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.5}
+  34%     {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.8}
+  56%,100%{transform:none;opacity:1}
+}
+/* lo que se descarta: cae y desaparece */
+.demo .sobra{animation:descartar 5s var(--e) infinite}
+@keyframes descartar{
+  0%      {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.5}
+  12%     {transform:translate(var(--dx),calc(var(--dy) + 5px)) rotate(var(--rot)) scale(.94);opacity:.5}
+  30%     {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.5}
+  34%     {transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.94);opacity:.9;
+           filter:none}
+  36%     {filter:brightness(2.2) saturate(0)}
+  48%,100%{transform:translate(var(--dx),calc(var(--dy) + 150px)) rotate(calc(var(--rot) * 2.4)) scale(.9);
+           opacity:0}
+}
+
+/* --- la pasada roja que revisa el material --- */
+.demo .pasada{position:absolute;top:0;bottom:0;width:2px;background:var(--rojo);left:0;opacity:0;
+  box-shadow:0 0 26px 5px rgba(217,31,17,.55);animation:pasar 5s var(--e) infinite}
+@keyframes pasar{
+  0%,28%  {left:-2%;opacity:0}
+  30%     {opacity:1}
+  40%     {opacity:1}
+  42%,100%{left:102%;opacity:0}
+}
+
+/* --- la M: entra, se llena de rojo y se retira a la esquina --- */
+.demo .sello{position:absolute;left:50%;top:42%;width:18%;transform:translate(-50%,-50%);
+  animation:selloEntra 5s var(--e) infinite;z-index:4}
+.demo .sello svg{width:100%;height:auto;overflow:visible}
+.demo .sello .hueco{fill:rgba(255,255,255,.16)}
+.demo .sello .subeM{animation:selloLlena 5s var(--e) infinite}
+.demo .sello .olita{animation:vaiven 1.6s linear infinite}
+.demo .esquina{position:absolute;left:6%;top:88%;width:3.4%;opacity:0;z-index:4;
+  animation:esquinaEntra 5s var(--e) infinite}
+.demo .esquina svg{width:100%;height:auto}
+@keyframes selloEntra{
+  0%,14%  {opacity:0;transform:translate(-50%,-50%) scale(.5)}
+  22%     {opacity:1;transform:translate(-50%,-50%) scale(1)}
+  50%     {opacity:1;transform:translate(-50%,-50%) scale(1)}
+  62%,100%{opacity:0;transform:translate(-50%,-50%) scale(.86)}
+}
+@keyframes esquinaEntra{0%,48%{opacity:0}58%,100%{opacity:.9}}
+@keyframes selloLlena{
+  0%,17%  {transform:translateY(0)}
+  32%,100%{transform:translateY(-165px)}
+}
+
+/* --- la línea de tiempo que se arma sola --- */
+.demo .riel{position:absolute;left:6%;right:6%;height:1px;background:var(--nle-3);opacity:0;
+  animation:aparecer 5s var(--e) infinite}
+.demo .riel.v{top:65.5%}
+.demo .riel.a{top:80%}
+@keyframes aparecer{0%,40%{opacity:0}54%,100%{opacity:1}}
+
+/* --- el audio y los cortes al ritmo --- */
+.demo .onda{position:absolute;left:6%;right:6%;top:70%;height:9%;display:flex;align-items:center;
+  gap:2px;opacity:0;animation:aparecer 5s var(--e) infinite}
+.demo .onda i{flex:1;background:#4A4A4A;height:12%;transform-origin:center;
+  animation:latir 5s var(--e) infinite}
+@keyframes latir{0%,52%{height:8%}62%{height:var(--h)}100%{height:var(--h)}}
+.demo .corte{position:absolute;top:50%;height:31%;width:1px;background:var(--rojo);opacity:0;
+  animation:cortar 5s var(--e) infinite}
+@keyframes cortar{
+  0%,62%  {opacity:0;transform:scaleY(.3)}
+  70%     {opacity:1;transform:scaleY(1)}
+  100%    {opacity:.85;transform:scaleY(1)}
+}
+/* --- la barra que confirma que terminó --- */
+.demo .listo{position:absolute;left:6%;right:6%;top:92%;height:2px;background:var(--nle-2)}
+.demo .listo i{display:block;height:100%;background:var(--rojo);width:0;
+  animation:completar 5s var(--e) infinite}
+@keyframes completar{0%,66%{width:0}88%,100%{width:100%}}
+</style>
+<style>
+/* ============================================================
+   HÉROE
+   ============================================================ */
+.heroe{padding:calc(var(--barra) + 76px) 40px 78px;border-bottom:1px solid var(--hilo)}
+.heroe .rejilla{display:grid;grid-template-columns:1fr;gap:44px;text-align:center;
+  place-items:center}
+.heroe h1{font-size:clamp(34px,6.2vw,72px);font-weight:300;letter-spacing:-.04em;line-height:.98;
+  text-wrap:balance;max-width:16ch}
+.heroe h1 b{font-weight:900}
+.heroe .bajada{max-width:58ch;font-size:15.5px;line-height:1.7;color:var(--humo)}
+.heroe .acciones{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.heroe .pieAcciones{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--humo)}
+.heroe .marcoDemo{width:100%;max-width:980px}
+.heroe .pieDemo{display:flex;justify-content:space-between;gap:16px;margin-top:12px;flex-wrap:wrap}
+
+/* tira de programas compatibles */
+.tiraHosts{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;
+  border-top:1px solid var(--hilo);margin-top:60px;padding-top:26px}
+.tiraHosts span{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--humo);
+  padding:0 22px;border-right:1px solid var(--hilo);line-height:1}
+.tiraHosts span:last-child{border-right:0}
+.tiraHosts b{color:var(--tinta);font-weight:700}
+
+/* ============================================================
+   QUÉ ES — tres frases y ya. Es la sección que hace entender.
+   ============================================================ */
+.quees{background:var(--hueso);border-bottom:1px solid var(--hilo)}
+.quees .tres{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
+  border:1px solid var(--hilo)}
+.quees .una{background:var(--papel);padding:34px 30px 38px;display:flex;flex-direction:column;gap:14px}
+.quees .una .no{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--rojo);
+  font-weight:500}
+.quees .una h3{font-size:19px;font-weight:900;letter-spacing:-.025em;line-height:1.15}
+.quees .una p{font-size:13.5px;line-height:1.65;color:var(--humo)}
+
+/* ============================================================
+   MAQUETA DEL PROGRAMA — un panel acoplado dentro de Premiere.
+   Es dibujo, no una captura: así se entiende dónde vive el plugin.
+   ============================================================ */
+.nle{background:var(--nle-0);border:1px solid var(--nle-3);overflow:hidden;
+  font-variant-numeric:tabular-nums}
+.nle-barra{height:30px;background:var(--nle-2);border-bottom:1px solid var(--nle-3);display:flex;
+  align-items:center;gap:8px;padding:0 12px}
+.nle-barra .luz{width:8px;height:8px;border-radius:50%;background:var(--nle-4);flex:none}
+.nle-barra .tit{font-size:9.5px;letter-spacing:.06em;color:#7A7A7A;margin-left:8px}
+.nle-cuerpo{display:grid;grid-template-columns:1fr 264px}
+.nle-mon{background:#000;position:relative;aspect-ratio:16/9;border-right:1px solid var(--nle-3)}
+.nle-mon .cine{position:absolute;inset:0}
+.nle-mon .transporte{position:absolute;left:0;right:0;bottom:0;height:26px;background:rgba(16,16,16,.9);
+  border-top:1px solid var(--nle-3);display:flex;align-items:center;gap:9px;padding:0 11px;z-index:4}
+.nle-mon .transporte .tri{width:0;height:0;border-left:7px solid #B0B0B0;border-top:5px solid transparent;
+  border-bottom:5px solid transparent}
+.nle-mon .transporte .cinta{flex:1;height:2px;background:var(--nle-4);position:relative}
+.nle-mon .transporte .cinta i{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--rojo)}
+.nle-mon .transporte .tc{font-size:9px;color:#8A8A8A;letter-spacing:.05em}
+
+/* el panel de MOVIBES acoplado a la derecha */
+.nle-panel{background:var(--nle-1);display:flex;flex-direction:column}
+.nle-panel .cabP{height:32px;border-bottom:1px solid var(--nle-3);display:flex;align-items:center;
+  gap:8px;padding:0 12px;background:var(--nle-2)}
+.nle-panel .cabP .mm{width:11px;flex:none}
+.nle-panel .cabP b{font-size:9.5px;font-weight:900;letter-spacing:.14em;color:#FFF}
+.nle-panel .cabP .estado{margin-left:auto;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--rojo);display:flex;align-items:center;gap:5px}
+.nle-panel .cabP .estado i{width:5px;height:5px;border-radius:50%;background:var(--rojo);
+  animation:pulso 1.4s ease-in-out infinite}
+@keyframes pulso{50%{opacity:.25}}
+.nle-panel .cuerpoP{padding:14px 12px;display:flex;flex-direction:column;gap:13px;flex:1}
+.nle-panel .medida{display:flex;flex-direction:column;gap:6px}
+.nle-panel .medida .fila{display:flex;justify-content:space-between;font-size:9.5px;color:#8A8A8A;
+  letter-spacing:.04em}
+.nle-panel .medida .fila b{color:#E0E0E0;font-weight:500}
+.nle-panel .barrita{height:2px;background:var(--nle-3)}
+.nle-panel .barrita i{display:block;height:100%;background:var(--rojo)}
+.nle-panel .grupo{border-top:1px solid var(--nle-3);padding-top:12px;display:flex;flex-direction:column;
+  gap:8px}
+.nle-panel .grupo .tg{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#6A6A6A}
+.nle-panel .op{display:flex;align-items:center;gap:8px;font-size:10px;color:#C8C8C8}
+.nle-panel .op .cua{width:11px;height:11px;border:1px solid var(--nle-4);flex:none;display:grid;
+  place-items:center}
+.nle-panel .op.si .cua{background:var(--rojo);border-color:var(--rojo)}
+.nle-panel .op.si .cua::after{content:'';width:4px;height:4px;background:#FFF}
+.nle-panel .op .val{margin-left:auto;color:#7A7A7A;font-size:9px}
+.nle-panel .botonP{margin-top:auto;background:var(--rojo);color:#FFF;text-align:center;padding:10px;
+  font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+
+/* la línea de tiempo dibujada */
+.nle-linea{border-top:1px solid var(--nle-3);background:var(--nle-1);padding:10px 12px 14px;
+  display:flex;flex-direction:column;gap:5px}
+.nle-linea .regla{height:14px;position:relative;
+  background:repeating-linear-gradient(90deg,var(--nle-4) 0 1px,transparent 1px 40px)}
+.nle-linea .regla::after{content:'';position:absolute;left:38%;top:-2px;bottom:-4px;width:1px;
+  background:var(--rojo)}
+.nle-linea .pista{display:flex;gap:2px;height:22px}
+.nle-linea .pista.audio{height:17px}
+.nle-linea .cl{border-radius:1px;background:var(--nle-4);position:relative;overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.nle-linea .cl::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#6A6A6A}
+.nle-linea .cl.rojo::before{background:var(--rojo)}
+.nle-linea .cl.au{background:#22333A}
+.nle-linea .cl.au::before{background:#3E6B7A}
+.nle-linea .marca{position:absolute;top:0;width:1px;background:var(--rojo);height:100%}
+
+/* ============================================================
+   CAPACIDADES
+   ============================================================ */
+.capas{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
+  border:1px solid var(--hilo)}
+.capa{background:var(--papel);padding:32px 28px 34px;display:flex;flex-direction:column;gap:13px;
+  min-height:214px;position:relative;isolation:isolate;transition:color .5s var(--e)}
+.capa::before{content:'';position:absolute;inset:0;background:var(--tinta);transform:translateY(101%);
+  transition:transform .65s var(--e);z-index:-1}
+.capa:hover::before{transform:translateY(0)}
+.capa:hover{color:var(--papel)}
+.capa:hover p{color:rgba(255,255,255,.72)}
+.capa .ic{width:30px;height:30px;border:1px solid var(--rojo);color:var(--rojo);display:grid;
+  place-items:center;font-size:11px;font-weight:900;flex:none;margin-bottom:3px}
+.capa h3{font-size:16px;font-weight:700;letter-spacing:-.015em}
+.capa p{font-size:13px;line-height:1.65;color:var(--humo);transition:color .5s var(--e)}
+
+/* ============================================================
+   PASOS
+   ============================================================ */
+.pasos{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
+  border:1px solid var(--hilo)}
+.paso{background:var(--papel);padding:30px 26px 32px;display:flex;flex-direction:column;gap:12px}
+.paso .rel{font-size:10px;letter-spacing:.16em;color:var(--rojo);font-weight:500}
+.paso h3{font-size:17px;font-weight:900;letter-spacing:-.02em}
+.paso p{font-size:13px;line-height:1.65;color:var(--humo)}
+.paso .reloj{margin-top:auto;padding-top:15px;border-top:1px solid var(--hilo);font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--humo)}
+
+/* ============================================================
+   ANTES Y DESPUÉS
+   ============================================================ */
+.comp{position:relative;aspect-ratio:16/9;overflow:hidden;background:var(--tinta);cursor:ew-resize;
+  touch-action:none;user-select:none}
+.comp video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.crudo{position:absolute;inset:0;overflow:hidden;z-index:2;will-change:clip-path}
+.crudo video{filter:saturate(.18) contrast(.82) brightness(1.12)}
+.tira{position:absolute;top:0;bottom:0;width:1px;background:var(--rojo);z-index:4;
+  transform:translateX(-50%);pointer-events:none}
+.tira::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;
+  height:36px;background:var(--rojo);border-radius:50%;box-shadow:0 2px 14px rgba(0,0,0,.45)}
+.tira::before{content:'';position:absolute;top:50%;left:50%;z-index:1;width:18px;height:10px;
+  transform:translate(-50%,-50%);
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 10'%3E%3Cpath d='M6 1 1.6 5 6 9M12 1l4.4 4L12 9' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/18px 10px no-repeat}
+.rotC{position:absolute;bottom:14px;z-index:5;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+  font-weight:500;color:#FFF;background:rgba(13,13,13,.72);padding:6px 10px;pointer-events:none}
+.rotC.a{left:14px}.rotC.b{right:14px;background:var(--rojo)}
+
+/* ============================================================
+   GALERÍA DE MATERIAL
+   ============================================================ */
+.galeria{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hilo);
+  border:1px solid var(--hilo)}
+.pieza{background:var(--papel);display:flex;flex-direction:column}
+.pieza .cine{aspect-ratio:16/10}
+.pieza .pieP{padding:15px 16px 18px;display:flex;flex-direction:column;gap:4px}
+.pieza .pieP b{font-size:12.5px;font-weight:500}
+.pieza .pieP span{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--humo)}
+
+/* ============================================================
+   PRECIO
+   ============================================================ */
+.precios{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
+  border:1px solid var(--hilo)}
+.plan{background:var(--papel);padding:34px 30px 36px;display:flex;flex-direction:column;gap:20px}
+.plan.destaca{background:var(--tinta);color:var(--papel)}
+.plan.destaca p{color:#9A9A9A}
+.plan.destaca .lista li{border-bottom-color:#2A2A2A}
+.plan .pn{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.plan .pn h3{font-size:17px;font-weight:900;letter-spacing:-.02em}
+.plan .pr{display:flex;align-items:baseline;gap:8px}
+.plan .pr b{font-size:42px;font-weight:900;letter-spacing:-.05em;line-height:1;
+  font-variant-numeric:tabular-nums}
+.plan .pr span{font-size:11px;color:var(--humo);letter-spacing:.06em}
+.lista{list-style:none;padding:0;margin:0;display:flex;flex-direction:column}
+.lista li{font-size:12.5px;line-height:1.5;padding:11px 0;border-bottom:1px solid var(--hilo);
+  display:flex;gap:10px;align-items:flex-start}
+.lista li::before{content:'—';color:var(--rojo);flex:none}
+.plan .btn,.plan .btn-linea{margin-top:auto}
+
+/* ============================================================
+   DUDAS
+   ============================================================ */
+.faq{border-top:1px solid var(--hilo);max-width:900px}
+.faq details{border-bottom:1px solid var(--hilo)}
+.faq summary{padding:21px 0;font-size:15px;font-weight:500;cursor:pointer;list-style:none;display:flex;
+  justify-content:space-between;gap:20px;align-items:center;transition:color .3s var(--e)}
+.faq summary:hover{color:var(--rojo)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary i{width:11px;height:11px;flex:none;position:relative}
+.faq summary i::before,.faq summary i::after{content:'';position:absolute;background:currentColor;
+  left:0;top:5px;width:11px;height:1px;transition:transform .4s var(--e)}
+.faq summary i::after{transform:rotate(90deg)}
+.faq details[open] summary i::after{transform:rotate(0)}
+.faq .resp{padding:0 0 22px;font-size:13.5px;line-height:1.75;color:var(--humo);max-width:72ch}
+
+/* ============================================================
+   CIERRE — la M grande termina de llenarse justo aquí
+   ============================================================ */
+.cierre{background:var(--tinta);color:var(--papel);text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:32px}
+.cierre .grande{width:min(210px,42vw);height:auto;overflow:visible}
+.cierre .grande .hueco{fill:rgba(255,255,255,.13)}
+.cierre .grande .olita{animation:vaiven 3.4s linear infinite}
+.cierre h2{font-size:clamp(28px,5vw,54px);font-weight:300;letter-spacing:-.04em;line-height:1;
+  text-wrap:balance;max-width:18ch}
+.cierre h2 b{font-weight:900}
+.cierre .txt{max-width:52ch}
+footer{background:var(--tinta);color:var(--papel);border-top:1px solid #242424;padding:30px 40px 56px;
+  display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+footer .et-fina{color:#6A6A6A}
+
+@media (max-width:980px){
+  .nle-cuerpo{grid-template-columns:1fr}
+  .nle-mon{border-right:0;border-bottom:1px solid var(--nle-3)}
+  .capas,.pasos,.quees .tres,.precios{grid-template-columns:1fr}
+  .galeria{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:820px){
+  .heroe{padding:calc(var(--barra) + 46px) 20px 56px}
+  .tiraHosts span{padding:6px 14px;border-right:0}
+  footer{padding:26px 20px 46px}
+}
+</style>
+
+<header>
+  <svg class="medidor" id="medidor" role="img" aria-label="Avance de lectura"></svg>
+  <span class="marcaTexto">MOVIBES</span>
+  <span class="crecer"></span>
+  <nav>
+    <a href="#queEs">Qué es</a>
+    <a href="#comoFunciona">Cómo funciona</a>
+    <a href="#queHace">Qué hace</a>
+    <a href="#precio">Precio</a>
+  </nav>
+  <span class="crecer"></span>
+  <span class="et-fina avance" id="avance">0 %</span>
+</header>
+
+<main>
+<section class="heroe">
+  <div class="rejilla lim">
+    <span class="et-fina">Plugin para Premiere Pro · DaVinci Resolve · After Effects</span>
+    <h1>Suelta el material. <b>Sal con el montaje.</b></h1>
+    <p class="bajada">MOVIBES es un panel que se instala dentro de tu programa de edición.
+      Lee todo el material, descarta lo que no sirve, sincroniza el audio y corta al ritmo de la
+      pista. Te devuelve un primer montaje editable en cinco minutos. Lo que decides sigue siendo tuyo;
+      lo que se hacía a las tres de la mañana, no.</p>
+
+    <div class="marcoDemo">
+      <div class="demo" id="demo" role="img"
+           aria-label="Animación: el material desordenado se ordena solo en la línea de tiempo al activar MOVIBES"></div>
+      <div class="pieDemo">
+        <span class="et-fina">Lo que pasa al pulsar montar</span>
+        <span class="et-fina">Cinco segundos, en bucle</span>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button class="btn">Descargar gratis __FLECHA__</button>
+      <button class="btn-linea">Ver el panel por dentro</button>
+    </div>
+    <span class="pieAcciones">12 transiciones incluidas · sin tarjeta</span>
+  </div>
+
+  <div class="tiraHosts lim">
+    <span>Corre en</span>
+    <span><b>Premiere Pro</b> 2021+</span>
+    <span><b>DaVinci Resolve</b> 18.5+</span>
+    <span><b>After Effects</b> 2022+</span>
+    <span>Windows y Mac</span>
+  </div>
+</section>
+
+<section class="quees" id="queEs">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Qué es</span>
+      <h2>Un panel, <b>no otro programa</b></h2>
+      <span class="crecer"></span><span class="et-fina">En una línea</span></div>
+    <div class="tres rev">
+      <div class="una"><span class="no">Dónde vive</span>
+        <h3>Dentro de Premiere, acoplado</h3>
+        <p>Se instala una vez y aparece como un panel más, al lado del monitor. No hay que exportar,
+          ni abrir otra ventana, ni salir del proyecto en el que ya estás trabajando.</p></div>
+      <div class="una"><span class="no">Qué devuelve</span>
+        <h3>Una secuencia editable</h3>
+        <p>No un video plano. Capas separadas, cortes movibles y marcadores donde tomó cada decisión,
+          para que cambies lo que quieras sin rehacer nada.</p></div>
+      <div class="una"><span class="no">Dónde ocurre</span>
+        <h3>En tu máquina, sin nube</h3>
+        <p>El análisis corre en tu equipo. El material no sale de tu disco. Lo único que sale a
+          internet es la comprobación de la licencia, una vez al día.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="comoFunciona">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Cómo funciona</span>
+      <h2>Así se ve <b>dentro del programa</b></h2>
+      <span class="crecer"></span><span class="et-fina">Panel acoplado</span></div>
+    <p class="txt" style="max-width:66ch;margin-bottom:34px">El panel de la derecha es todo el plugin.
+      Se elige qué debe hacer, se pulsa montar y la línea de tiempo de abajo se llena sola. La barra
+      roja marca por dónde va.</p>
+    <div class="nle rev" id="maqueta"></div>
+
+    <div class="pasos rev" style="margin-top:56px">
+      <div class="paso"><span class="rel">Paso 01</span>
+        <h3>Sueltas la carpeta</h3>
+        <p>Entera, como salió de la tarjeta. Las tomas falsas, las que se movieron y el audio de la
+          grabadora aparte. No hay que ordenar ni renombrar nada antes.</p>
+        <span class="reloj">Segundo 0</span></div>
+      <div class="paso"><span class="rel">Paso 02</span>
+        <h3>Lee y propone</h3>
+        <p>Mide foco, exposición y encuadre; sincroniza por forma de onda; encuentra el pulso de la
+          pista y pone los cortes ahí. Puedes verlo trabajar.</p>
+        <span class="reloj">Minutos 1 a 4</span></div>
+      <div class="paso"><span class="rel">Paso 03</span>
+        <h3>Decides tú</h3>
+        <p>Te entrega la secuencia y se aparta. Mover un corte, cambiar una toma o tirar el montaje
+          entero cuesta lo mismo que siempre.</p>
+        <span class="reloj">Minuto 5</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="queHace" style="padding-top:0">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Qué hace</span>
+      <h2>Seis cosas, <b>bien hechas</b></h2>
+      <span class="crecer"></span><span class="et-fina">Sin módulos aparte</span></div>
+    <div class="capas rev" id="capas"></div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">La prueba</span>
+      <h2>Arrastra y <b>compara</b></h2>
+      <span class="crecer"></span><span class="et-fina">Mismo plano, mismo segundo</span></div>
+    <div class="comp rev" id="comp" role="slider" tabindex="0" aria-label="Comparar antes y después"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+      __COMPARADOR__
+      <span class="rotC a">Como salió de cámara</span>
+      <span class="rotC b">Con el plugin</span>
+      <div class="tira" id="tira" style="left:50%"></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Material</span>
+      <h2>Montado con <b>el plugin</b></h2>
+      <span class="crecer"></span><span class="et-fina">Trabajo real de MOVIBES</span></div>
+    <div class="galeria rev" id="galeria"></div>
+  </div>
+</section>
+
+<section id="precio" style="padding-top:0">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Precio</span>
+      <h2>Empieza gratis, <b>paga si te sirve</b></h2>
+      <span class="crecer"></span><span class="et-fina">Sin renovación automática</span></div>
+    <div class="precios rev">
+      <div class="plan">
+        <div class="pn"><h3>Kit gratuito</h3><span class="et-fina">Para siempre</span></div>
+        <div class="pr"><b>0 $</b><span>sin tarjeta</span></div>
+        <ul class="lista"><li>12 transiciones nativas</li><li>Montaje de hasta 10 minutos</li>
+          <li>Marca de agua en la exportación</li></ul>
+        <button class="btn-linea">Descargar</button>
+      </div>
+      <div class="plan destaca">
+        <div class="pn"><h3>Anual</h3><span class="et-fina" style="color:#D91F11">El habitual</span></div>
+        <div class="pr"><b>97 $</b><span>al año, una máquina</span></div>
+        <ul class="lista"><li>Sin límite de duración ni marca de agua</li>
+          <li>Pack de 40 transiciones</li><li>Actualizaciones del año</li>
+          <li>Soporte por correo en 24 h</li></ul>
+        <button class="btn ancho">Comprar __FLECHA__</button>
+      </div>
+      <div class="plan">
+        <div class="pn"><h3>Estudio</h3><span class="et-fina">5 puestos</span></div>
+        <div class="pr"><b>390 $</b><span>al año</span></div>
+        <ul class="lista"><li>Cinco licencias en un panel</li>
+          <li>Presets compartidos del estudio</li><li>Canal directo de soporte</li></ul>
+        <button class="btn-linea">Hablar con ventas</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="lim">
+    <div class="cab"><span class="et-fina">Dudas</span>
+      <h2>Lo que <b>siempre</b> preguntan</h2></div>
+    <div class="faq rev" id="faq"></div>
+  </div>
+</section>
+
+<section class="cierre oscura" id="cierre">
+  <svg class="grande" id="mGrande" role="img" aria-label="MOVIBES"></svg>
+  <h2>El primer corte <b>ya está hecho</b></h2>
+  <p class="txt">Descarga el kit gratuito y móntate algo esta misma tarde. Si no te ahorra una
+    jornada el primer mes, no hay nada que pagar.</p>
+  <div class="acciones" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+    <button class="btn">Descargar gratis __FLECHA__</button>
+    <button class="btn-linea claro">Ver precios</button>
+  </div>
+  <span class="et-fina">Windows y Mac · 240 MB · sin tarjeta</span>
+</section>
+</main>
+
+<footer>
+  <span class="et-fina">MOVIBES · Colombia</span>
+  <span class="crecer"></span>
+  <span class="et-fina">Lo imposible, en cámara</span>
+</footer>
+
+<script>
+const ASSETS = __ASSETS__;
+const CLIPS = [__CLIP1__,__CLIP2__,__CLIP3__,__CLIP4__];
+const POSTERS = [__POS1__,__POS2__,__POS3__,__POS4__];
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const L = ASSETS.letras, ORDEN = ASSETS.orden, M = L.M;
+
+function caja(k, p){
+  const b = k.map(x => L[x].b);
+  return [Math.min(...b.map(v=>v[0]))-p, Math.min(...b.map(v=>v[1]))-p,
+          Math.max(...b.map(v=>v[2]))+p, Math.max(...b.map(v=>v[3]))+p];
+}
+function vb(c){ return `${c[0].toFixed(1)} ${c[1].toFixed(1)} ${(c[2]-c[0]).toFixed(1)} ${(c[3]-c[1]).toFixed(1)}`; }
+function marca(keys, tinta, pad){
+  const c = caja(keys, pad || 12);
+  return `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" viewBox="${vb(c)}"><path fill="${tinta}" d="${keys.map(k=>L[k].d).join('')}"/></svg>`;
+}
+function onda(x0, x1, y, amp, largo, hasta){
+  let d = `M ${x0} ${y}`;
+  for (let x = x0; x < x1; x += largo) d += ` q ${largo/4} ${-amp} ${largo/2} 0 q ${largo/4} ${amp} ${largo/2} 0`;
+  return d + ` V ${hasta} H ${x0} Z`;
+}
+
+/* ============================================================
+   LA M QUE SE LLENA CON EL SCROLL
+   El rojo sube por dentro del contorno de la M según lo que se
+   lleve leído, y toca el borde de arriba justo al final de la
+   página. Misma pieza en la cabecera y en el cierre.
+   ============================================================ */
+const ALTO_M = M.b[3] - M.b[1];          /* alto real de la letra */
+const RECORRIDO = ALTO_M + 26;           /* lo que debe subir la ola para llenarla entera */
+let uid = 0;
+function mLlenable(clase){
+  const c = caja(['M'], 8), id = 'm' + (++uid);
+  return `<svg class="${clase}" viewBox="${vb(c)}" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="${id}"><path d="${M.d}"/></clipPath></defs>
+    <path class="hueco" d="${M.d}"/>
+    <g clip-path="url(#${id})"><g class="subeM"><g class="olita">
+      <path d="${onda(-260, 620, c[3], 9, 74, c[3] + 360)}" fill="#D91F11"/>
+    </g></g></g></svg>`;
+}
+$('#medidor').outerHTML = mLlenable('medidor').replace('<svg', '<svg id="medidor" role="img" aria-label="Avance de lectura"');
+$('#mGrande').outerHTML = mLlenable('grande').replace('<svg', '<svg id="mGrande" role="img" aria-label="MOVIBES"');
+
+const capasM = [$('#medidor .subeM'), $('#mGrande .subeM')];
+const rotulo = $('#avance');
+let pedido = false;
+function medir(){
+  pedido = false;
+  const alcance = document.documentElement.scrollHeight - innerHeight;
+  const p = alcance > 0 ? Math.min(1, Math.max(0, scrollY / alcance)) : 1;
+  const y = (-RECORRIDO * p).toFixed(2);
+  capasM.forEach(g => { if (g) g.setAttribute('transform', `translate(0 ${y})`); });
+  rotulo.textContent = Math.round(p * 100) + ' %';
+  document.querySelector('header').classList.toggle('desplazado', scrollY > 10);
+}
+addEventListener('scroll', () => {
+  if (!pedido) { pedido = true; requestAnimationFrame(medir); }
+}, { passive: true });
+addEventListener('resize', medir, { passive: true });
+</script>
+
+<script>
+/* ============================================================
+   LA DEMO DE CINCO SEGUNDOS, SIN UNA SOLA PALABRA
+   Los valores de dispersión son fijos, no aleatorios: la
+   animación tiene que verse igual en cada carga y en cada
+   grabación de pantalla.
+   ============================================================ */
+/* ancho, y desde dónde entra cada trozo: [ancho%, dx, dy, giro] */
+const SIRVEN = [
+  [15, '-190px', '-118px', '-9deg'],
+  [11,  '128px', '-152px',  '7deg'],
+  [18, '-104px',  '104px', '-5deg'],
+  [12,  '196px',   '78px', '11deg'],
+  [16,  '-36px', '-176px',  '4deg'],
+  [13,  '150px',   '18px', '-8deg']
+];
+const SOBRAN = [
+  [10, '-236px',  '-52px', '13deg'],
+  [ 9,   '58px',  '148px', '-14deg'],
+  [11,  '232px', '-104px',  '6deg']
+];
+
+function pintarDemo(){
+  const t = [];
+  t.push('<div class="escena"><div class="malla"></div>');
+
+  /* los trozos que se quedan: cada uno con su sitio final en la línea */
+  let x = 6;
+  const bordes = [];
+  SIRVEN.forEach(([an, dx, dy, rot], i) => {
+    t.push(`<div class="clip sirve${i % 3 === 1 ? ' marcado' : ''}"
+      style="left:${x}%;width:${an}%;top:52%;--dx:${dx};--dy:${dy};--rot:${rot};
+             animation-delay:${(i * 0.045).toFixed(3)}s"></div>`);
+    x += an + 0.7;
+    if (i < SIRVEN.length - 1) bordes.push(x - 0.35);
+  });
+
+  /* los que se descartan: entran igual y se caen */
+  SOBRAN.forEach(([an, dx, dy, rot], i) => {
+    t.push(`<div class="clip sobra"
+      style="left:${18 + i * 26}%;width:${an}%;top:52%;--dx:${dx};--dy:${dy};--rot:${rot};
+             animation-delay:${(i * 0.05).toFixed(3)}s"></div>`);
+  });
+
+  t.push('<div class="pasada"></div>');
+  t.push('<div class="riel v"></div><div class="riel a"></div>');
+
+  /* la onda de audio: alturas fijas con forma de pulso musical */
+  const barras = [];
+  for (let i = 0; i < 58; i++){
+    const pulso = Math.abs(Math.sin(i * 0.55)) * 0.62 + Math.abs(Math.sin(i * 1.9)) * 0.3;
+    barras.push(`<i style="--h:${(16 + pulso * 84).toFixed(0)}%;animation-delay:${(i * 0.008).toFixed(3)}s"></i>`);
+  }
+  t.push(`<div class="onda">${barras.join('')}</div>`);
+
+  /* un corte rojo en cada unión: el ritmo cae donde cambia el plano */
+  bordes.forEach((b, i) => t.push(
+    `<div class="corte" style="left:${b.toFixed(2)}%;animation-delay:${(i * 0.07).toFixed(3)}s"></div>`));
+
+  t.push(`<div class="sello">${mLlenable('mDemo')}</div>`);
+  t.push(`<div class="esquina">${marca(['M'], '#FFFFFF', 8)}</div>`);
+  t.push('<div class="listo"><i></i></div>');
+  t.push('</div>');
+  $('#demo').innerHTML = t.join('');
+}
+pintarDemo();
+
+/* ============================================================
+   MAQUETA DEL PROGRAMA
+   ============================================================ */
+const PISTA_V = [14, 9, 17, 7, 12, 10, 15, 8];
+const PISTA_A = [30, 22, 26];
+function pintarMaqueta(){
+  const v = PISTA_V.map((a, i) =>
+    `<div class="cl${i % 3 === 2 ? ' rojo' : ''}" style="flex:${a}"></div>`).join('');
+  const a = PISTA_A.map(x => `<div class="cl au" style="flex:${x}"></div>`).join('');
+  $('#maqueta').innerHTML = `
+    <div class="nle-barra">
+      <span class="luz"></span><span class="luz"></span><span class="luz"></span>
+      <span class="tit">Adobe Premiere Pro — videoclip_calle.prproj</span>
+    </div>
+    <div class="nle-cuerpo">
+      <div class="nle-mon">
+        <div class="cine">
+          <video data-clip="0" poster="${POSTERS[0]}" muted loop playsinline preload="none"
+                 disablepictureinpicture aria-hidden="true"></video>
+        </div>
+        <div class="transporte">
+          <span class="tri"></span>
+          <span class="tc">00:00:14:08</span>
+          <span class="cinta"><i></i></span>
+          <span class="tc">00:03:41:02</span>
+        </div>
+      </div>
+      <div class="nle-panel">
+        <div class="cabP">${marca(['M'], '#FFFFFF', 9).replace('<svg', '<svg class="mm"')}
+          <b>MOVIBES</b><span class="estado"><i></i>Montando</span></div>
+        <div class="cuerpoP">
+          <div class="medida">
+            <div class="fila"><span>Material leído</span><b>3 h 47 min</b></div>
+            <div class="barrita"><i style="width:78%"></i></div>
+            <div class="fila"><span>Tomas descartadas</span><b>41</b></div>
+            <div class="fila"><span>Cortes propuestos</span><b>72</b></div>
+            <div class="fila"><span>Tiempo restante</span><b>1 min 12 s</b></div>
+          </div>
+          <div class="grupo"><span class="tg">Qué debe hacer</span>
+            <div class="op si"><span class="cua"></span>Descartar tomas malas<span class="val">estricto</span></div>
+            <div class="op si"><span class="cua"></span>Sincronizar audio<span class="val">por onda</span></div>
+            <div class="op si"><span class="cua"></span>Cortar al ritmo<span class="val">medio</span></div>
+            <div class="op"><span class="cua"></span>Igualar color<span class="val">apagado</span></div>
+          </div>
+          <div class="botonP">Montar</div>
+        </div>
+      </div>
+    </div>
+    <div class="nle-linea">
+      <div class="regla"></div>
+      <div class="pista">${v}</div>
+      <div class="pista audio">${a}</div>
+    </div>`;
+}
+pintarMaqueta();
+
+/* ============================================================
+   CAPACIDADES, MATERIAL Y DUDAS
+   ============================================================ */
+const CAPAS = [
+  ['A','Descarte automático','Tomas fuera de foco, quemadas o con la claqueta todavía en cuadro. Las marca y las aparta del montaje, nunca las borra del disco.'],
+  ['S','Sincronía por onda','Cámara y grabadora aparte quedan alineadas al fotograma sin necesidad de claqueta, comparando la forma de onda del audio.'],
+  ['R','Corte al ritmo','Encuentra el pulso de la pista y pone los cortes ahí. Se le puede subir o bajar la intensidad antes de montar.'],
+  ['C','Color de arranque','Un igualado base entre cámaras para que el primer corte ya se vea de una pieza y no como tomas sueltas.'],
+  ['T','Capas intactas','Devuelve una secuencia editable con marcadores donde tomó cada decisión. Nada aplanado, nada renderizado por dentro.'],
+  ['L','Trabaja sin nube','El análisis pasa en tu equipo. El material no sale de tu disco en ningún momento del proceso.']
+];
+const MATERIAL = [
+  [0,'Videoclip de calle','Corte al ritmo'],
+  [2,'Pieza nocturna','Color de arranque'],
+  [1,'Transición de bloque','Pack incluido'],
+  [3,'Retrato con estela','Efecto de capas']
+];
+const DUDAS = [
+  ['¿Necesito una tarjeta gráfica cara?','No para cortar. El análisis usa la GPU si la hay y el procesador si no; en un portátil de 2019 el mismo montaje tarda ocho minutos en vez de cinco. Lo que no cambia es el resultado.'],
+  ['¿Esto reemplaza al editor?','No, y quien diga que sí te está vendiendo humo. Arma el primer montaje: sincroniza, descarta lo quemado, corta al ritmo y deja marcadores. Las decisiones siguen siendo tuyas; lo que desaparece es el trabajo de ordenar material a las tres de la mañana.'],
+  ['¿Cómo se instala?','Se descarga un instalador, se ejecuta y la próxima vez que abras Premiere el panel aparece en el menú de ventanas. No hay que copiar carpetas a mano ni tocar preferencias.'],
+  ['¿Puedo mover los cortes después?','Todos. Devuelve una secuencia normal, con sus capas y sus puntos de entrada y salida. Se edita igual que si la hubieras armado tú.'],
+  ['¿Se lleva mi material a algún servidor?','No. Todo el análisis pasa en tu máquina. Lo único que sale a internet es la comprobación de la licencia, una vez al día.'],
+  ['¿Y si no me sirve?','El kit gratuito no caduca, así que puedes probarlo sin pagar. Si compraste y no te sirve, hay treinta días de devolución: un correo basta, sin formulario de salida ni llamada de retención.']
+];
+
+$('#capas').innerHTML = CAPAS.map(([i,t,d]) =>
+  `<div class="capa"><span class="ic">${i}</span><h3>${t}</h3><p>${d}</p></div>`).join('');
+
+$('#galeria').innerHTML = MATERIAL.map(([c,n,e]) => `
+  <div class="pieza">
+    <div class="cine">
+      <video data-clip="${c}" poster="${POSTERS[c]}" muted loop playsinline preload="none"
+             disablepictureinpicture aria-hidden="true"></video>
+      <span class="fw">${marca(['M'], '#FFFFFF', 8)}</span>
+    </div>
+    <div class="pieP"><b>${n}</b><span>${e}</span></div>
+  </div>`).join('');
+
+$('#faq').innerHTML = DUDAS.map(([p,r]) =>
+  `<details><summary>${p}<i></i></summary><div class="resp">${r}</div></details>`).join('');
+
+/* ============================================================
+   COMPARADOR Y MATERIAL EN PANTALLA
+   ============================================================ */
+(function comparador(){
+  const zona = $('#comp'), crudo = $('#comp .crudo'), tira = $('#tira');
+  let p = 50;
+  const pinta = () => {
+    crudo.style.clipPath = `inset(0 ${100 - p}% 0 0)`;
+    tira.style.left = p + '%';
+    zona.setAttribute('aria-valuenow', Math.round(p));
+  };
+  const desde = e => {
+    const c = zona.getBoundingClientRect();
+    p = Math.min(100, Math.max(0, ((e.clientX - c.left) / c.width) * 100));
+    pinta();
+  };
+  let arrastra = false;
+  zona.addEventListener('pointerdown', e => { arrastra = true; zona.setPointerCapture(e.pointerId); desde(e); });
+  zona.addEventListener('pointermove', e => { if (arrastra) desde(e); });
+  zona.addEventListener('pointerup', () => arrastra = false);
+  zona.addEventListener('pointercancel', () => arrastra = false);
+  zona.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft'){ p = Math.max(0, p - 4); pinta(); e.preventDefault(); }
+    if (e.key === 'ArrowRight'){ p = Math.min(100, p + 4); pinta(); e.preventDefault(); }
+  });
+  pinta();
+})();
+
+/* el material sólo se carga y corre cuando está a la vista */
+(function material(){
+  const vs = $$('video[data-clip]');
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const v = e.target;
+    if (e.isIntersecting){
+      if (!v.src) v.src = CLIPS[+v.dataset.clip];
+      if (!quieto){ const pr = v.play(); if (pr) pr.catch(() => {}); }
+    } else v.pause();
+  }), { rootMargin: '200px', threshold: .1 });
+  vs.forEach(v => io.observe(v));
+})();
+
+/* revelados al entrar en pantalla */
+(function revelar(){
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting){ e.target.classList.add('visto'); io.unobserve(e.target); }
+  }), { threshold: .12 });
+  $$('.rev').forEach(el => io.observe(el));
+})();
+
+medir();
+</script>

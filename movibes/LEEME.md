@@ -1,17 +1,20 @@
-# MOVIBES — previsualización del embudo
+# MOVIBES — páginas del plugin
 
-Maqueta navegable de las cinco landings del embudo de venta del plugin de edición.
-Es un solo archivo HTML, sin dependencias y sin red: la tipografía, el lettering y
-el material de video van dentro.
+Dos páginas, cada una en un solo archivo HTML sin dependencias y sin red: la
+tipografía, el lettering y el material de video van dentro.
+
+| Página | Archivo | Qué es |
+|---|---|---|
+| **Landing del plugin** | `plugin/index.html` | La página de producto. Explica qué es el plugin, con la animación de cinco segundos y la M que se llena al bajar |
+| **Previsualización del embudo** | `index.html` | Las cinco landings del embudo, navegables desde un índice |
 
 ## Qué hay
 
 | Archivo | Qué es |
 |---|---|
-| `index.html` | **El entregable.** Documento completo y autónomo: se abre con doble clic o se sube tal cual a cualquier hosting |
-| `embudo.src.html` | La fuente. **Aquí se edita.** Lleva huecos `__CLIP1__`, `__FIGTREE__`… |
-| `construir.js` | Mete la tipografía, el lettering y los videos en los huecos y escribe `index.html` y `embudo.html` |
-| `embudo.html` | El mismo contenido sin `<html>`/`<head>`/`<body>`, que es como lo pide el visor de Artifacts. No se versiona |
+| `plugin.src.html` | Fuente de la landing del plugin. **Aquí se edita.** |
+| `embudo.src.html` | Fuente de la previsualización del embudo. **Aquí se edita.** |
+| `construir.js` | Mete la tipografía, el lettering y los videos en los huecos y escribe las dos páginas |
 | `figtree.css` | Los cinco pesos de Figtree incrustados, sacados del sistema de marca |
 | `marca-assets.json` | La geometría del lettering MOVIBES, curva por curva |
 | `media/c1..c4.mp4` | Material de MOVIBES recomprimido (sin audio, ~1,5 MB en total) |
@@ -20,7 +23,7 @@ el material de video van dentro.
 ## Construir
 
 ```
-node movibes/construir.js      # escribe index.html y embudo.html (~2,2 MB cada uno)
+node movibes/construir.js      # escribe las dos páginas (~2,2 MB cada una)
 ```
 
 Sin dependencias: Node puro, igual que el resto del repo.
@@ -30,7 +33,34 @@ van incrustados. Funciona con doble clic desde el escritorio, desde un USB o sub
 Netlify, Cloudflare Pages o donde sea. Para publicarlo basta con soltar ese archivo solo;
 no hace falta la carpeta `media/`, que es material de origen para reconstruirlo.
 
-## Las cinco etapas
+## La animación de cinco segundos
+
+Está en el héroe de la landing del plugin y no lleva una sola palabra: material
+desordenado → se enciende la M y se llena de rojo → una pasada roja revisa → lo que
+no sirve se cae → lo bueno se ordena solo en la línea de tiempo → el audio marca los
+cortes → la barra se completa. Cinco segundos, en bucle.
+
+Todas las capas cuelgan de un mismo ciclo de 5 s con porcentajes del mismo reloj, así
+que no se desincronizan. Los valores de dispersión de cada trozo son fijos, no
+aleatorios: tiene que verse igual en cada carga y en cada grabación de pantalla.
+
+**Para revisarla fotograma a fotograma no sirve `animation-delay` negativo**: se suma
+al tiempo ya transcurrido y da resultados corridos. Hay que congelar la línea de tiempo
+de verdad:
+
+```js
+document.querySelectorAll('.demo .escena, .demo .escena *').forEach(el =>
+  el.getAnimations().forEach(a => { a.pause(); a.currentTime = 1500; }));
+```
+
+## La M que se llena al bajar
+
+El monograma de la cabecera es el medidor de avance: el rojo sube por dentro del
+contorno de la letra según lo leído y toca el borde de arriba justo al final de la
+página. La misma pieza, en grande, cierra la página. Es la mecánica del lettering
+líquido del sistema de marca, atada al scroll en vez de a un temporizador.
+
+## Las cinco etapas del embudo
 
 1. **Captura** — pantalla partida, un solo campo. Regala las transiciones por el correo.
 2. **Carta de ventas** — columna única, el video manda. Mecanismo, prueba, oferta, garantía, dudas.
