@@ -67,8 +67,35 @@ header nav{display:flex;gap:24px;align-items:center}
 header nav a{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--humo);
   font-weight:500;transition:color .3s var(--e)}
 header nav a:hover{color:var(--tinta)}
+header nav a.activo{color:var(--tinta)}
 header .avance{font-variant-numeric:tabular-nums}
-@media (max-width:860px){header nav{display:none}}
+
+/* El botón de suscribirse no está desde el principio: aparece cuando ya
+   se pasó el héroe, que es cuando la oferta significa algo. Al pulsarlo
+   baja a los planes. Geometría cuadrada, como el resto del sistema. */
+header .suscribir{display:inline-flex;align-items:center;gap:9px;background:var(--rojo);color:#FFF;
+  padding:10px 18px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  position:relative;overflow:hidden;isolation:isolate;white-space:nowrap;
+  opacity:0;transform:translateY(-7px);pointer-events:none;
+  transition:opacity .45s var(--e),transform .45s var(--e),background .3s var(--e)}
+header .suscribir::before{content:'';position:absolute;inset:0;background:var(--sangre);
+  transform:translateY(101%);transition:transform .45s var(--e);z-index:-1}
+header .suscribir:hover::before{transform:translateY(0)}
+header .suscribir svg{width:13px;height:auto;flex:none;stroke:currentColor;fill:none;stroke-width:1.4;
+  transition:transform .4s var(--e)}
+header .suscribir:hover svg{transform:translateY(2px)}
+header.avanzado .suscribir{opacity:1;transform:none;pointer-events:auto}
+/* la barra se asienta cuando ya se bajó: hilo abajo y un pelo más compacta */
+header.avanzado{box-shadow:0 1px 0 var(--hilo)}
+
+/* que la cabecera fija no tape el título al saltar a una sección */
+#queEs,#comoFunciona,#queHace,#precio{scroll-margin-top:calc(var(--barra) + 18px)}
+
+@media (max-width:1080px){header nav{display:none}}
+@media (max-width:560px){
+  header .avance{display:none}
+  header .suscribir{padding:9px 13px;letter-spacing:.1em}
+}
 
 /* ============================================================
    BOTONES Y PIEZAS COMUNES
@@ -386,8 +413,13 @@ section{padding:96px 40px}
 /* ============================================================
    PRECIO
    ============================================================ */
-.precios{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
+.zonaPrecio{background:var(--hueso);border-top:1px solid var(--hilo);border-bottom:1px solid var(--hilo)}
+.precios{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hilo);
   border:1px solid var(--hilo)}
+.precios::after{content:'';position:absolute;inset:-9px;border:1px solid var(--rojo);opacity:0;
+  pointer-events:none;transition:opacity .4s var(--e)}
+.precios.llegada::after{animation:llegar 1.9s var(--e) forwards}
+@keyframes llegar{0%,62%{opacity:1}100%{opacity:0}}
 .plan{background:var(--papel);padding:34px 30px 36px;display:flex;flex-direction:column;gap:20px}
 .plan.destaca{background:var(--tinta);color:var(--papel)}
 .plan.destaca p{color:#9A9A9A}
@@ -461,6 +493,8 @@ footer .et-fina{color:#6A6A6A}
   </nav>
   <span class="crecer"></span>
   <span class="et-fina avance" id="avance">0 %</span>
+  <a class="suscribir" href="#precio" id="suscribir">Suscribirse
+    <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v11M2.5 7.5 7 12l4.5-4.5"/></svg></a>
 </header>
 
 <main>
@@ -483,8 +517,8 @@ footer .et-fina{color:#6A6A6A}
     </div>
 
     <div class="acciones">
-      <button class="btn">Descargar gratis __FLECHA__</button>
-      <button class="btn-linea">Ver el panel por dentro</button>
+      <a class="btn" href="#precio">Descargar gratis __FLECHA__</a>
+      <a class="btn-linea" href="#comoFunciona">Ver el panel por dentro</a>
     </div>
     <span class="pieAcciones">12 transiciones incluidas · sin tarjeta</span>
   </div>
@@ -583,7 +617,7 @@ footer .et-fina{color:#6A6A6A}
   </div>
 </section>
 
-<section id="precio" style="padding-top:0">
+<section id="precio" class="zonaPrecio">
   <div class="lim">
     <div class="cab"><span class="et-fina">Precio</span>
       <h2>Empieza gratis, <b>paga si te sirve</b></h2>
@@ -629,8 +663,8 @@ footer .et-fina{color:#6A6A6A}
   <p class="txt">Descarga el kit gratuito y móntate algo esta misma tarde. Si no te ahorra una
     jornada el primer mes, no hay nada que pagar.</p>
   <div class="acciones" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
-    <button class="btn">Descargar gratis __FLECHA__</button>
-    <button class="btn-linea claro">Ver precios</button>
+    <a class="btn" href="#precio">Descargar gratis __FLECHA__</a>
+    <a class="btn-linea claro" href="#precio">Ver precios</a>
   </div>
   <span class="et-fina">Windows y Mac · 240 MB · sin tarjeta</span>
 </section>
@@ -704,6 +738,41 @@ addEventListener('scroll', () => {
   if (!pedido) { pedido = true; requestAnimationFrame(medir); }
 }, { passive: true });
 addEventListener('resize', medir, { passive: true });
+
+/* ============================================================
+   LA BARRA QUE APARECE AL BAJAR
+   El botón de suscribirse se asoma cuando ya se pasó el héroe —
+   antes de eso no hay nada que suscribir todavía — y baja a los
+   planes. Al llegar, el bloque se enmarca un momento para que
+   quede claro dónde te dejó.
+   ============================================================ */
+(function barra(){
+  const cab = document.querySelector('header');
+  const heroe = document.querySelector('.heroe');
+  const io = new IntersectionObserver(
+    ([e]) => cab.classList.toggle('avanzado', !e.isIntersecting),
+    { rootMargin: '-60% 0px 0px 0px' });
+  io.observe(heroe);
+
+  /* qué sección se está mirando, marcada en el menú */
+  const enlaces = [...document.querySelectorAll('header nav a')];
+  const puntos = enlaces.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const ioSec = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    enlaces.forEach(a => a.classList.toggle('activo', a.getAttribute('href') === '#' + e.target.id));
+  }), { rootMargin: '-25% 0px -65% 0px' });
+  puntos.forEach(p => ioSec.observe(p));
+
+  /* señal de llegada: se enmarcan los planes un momento */
+  const planes = document.querySelector('.precios');
+  const señalar = () => {
+    planes.classList.remove('llegada');
+    void planes.offsetWidth;            /* reinicia la animación */
+    planes.classList.add('llegada');
+  };
+  document.querySelectorAll('a[href="#precio"]').forEach(a =>
+    a.addEventListener('click', () => setTimeout(señalar, 620)));
+})();
 </script>
 
 <script>

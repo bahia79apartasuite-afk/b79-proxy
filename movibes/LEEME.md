@@ -53,6 +53,17 @@ document.querySelectorAll('.demo .escena, .demo .escena *').forEach(el =>
   el.getAnimations().forEach(a => { a.pause(); a.currentTime = 1500; }));
 ```
 
+## La barra que aparece al bajar
+
+El botón de suscribirse no está desde el principio: se asoma cuando ya se pasó el
+héroe —antes de eso no hay nada que suscribir todavía— y al pulsarlo baja a los
+planes, que quedan enmarcados un momento para que se vea dónde te dejó. El menú va
+marcando la sección que se está mirando.
+
+Las secciones enlazables llevan `scroll-margin-top`, si no la cabecera fija les tapa
+el título al saltar. Si añades una sección nueva al menú, acuérdate de incluirla en
+esa regla.
+
 ## La M que se llena al bajar
 
 El monograma de la cabecera es el medidor de avance: el rojo sube por dentro del
