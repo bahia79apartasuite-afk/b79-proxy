@@ -8,8 +8,10 @@ el material de video van dentro.
 
 | Archivo | Qué es |
 |---|---|
+| `index.html` | **El entregable.** Documento completo y autónomo: se abre con doble clic o se sube tal cual a cualquier hosting |
 | `embudo.src.html` | La fuente. **Aquí se edita.** Lleva huecos `__CLIP1__`, `__FIGTREE__`… |
-| `construir.js` | Mete la tipografía, el lettering y los videos en los huecos y escribe `embudo.html` |
+| `construir.js` | Mete la tipografía, el lettering y los videos en los huecos y escribe `index.html` y `embudo.html` |
+| `embudo.html` | El mismo contenido sin `<html>`/`<head>`/`<body>`, que es como lo pide el visor de Artifacts. No se versiona |
 | `figtree.css` | Los cinco pesos de Figtree incrustados, sacados del sistema de marca |
 | `marca-assets.json` | La geometría del lettering MOVIBES, curva por curva |
 | `media/c1..c4.mp4` | Material de MOVIBES recomprimido (sin audio, ~1,5 MB en total) |
@@ -18,11 +20,15 @@ el material de video van dentro.
 ## Construir
 
 ```
-node movibes/construir.js      # escribe movibes/embudo.html (~2,2 MB)
+node movibes/construir.js      # escribe index.html y embudo.html (~2,2 MB cada uno)
 ```
 
-Sin dependencias: Node puro, igual que el resto del repo. `embudo.html` no se versiona
-porque se regenera con ese comando.
+Sin dependencias: Node puro, igual que el resto del repo.
+
+`index.html` no pide **nada** a la red: la tipografía, el lettering y los cuatro videos
+van incrustados. Funciona con doble clic desde el escritorio, desde un USB o subido a
+Netlify, Cloudflare Pages o donde sea. Para publicarlo basta con soltar ese archivo solo;
+no hace falta la carpeta `media/`, que es material de origen para reconstruirlo.
 
 ## Las cinco etapas
 
