@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "framer-motion": "^13.2.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
   }
 }
