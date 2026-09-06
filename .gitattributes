@@ -1,0 +1,6 @@
+# Los CSV/JSON de ui-ux-pro-max llevan hashes sha256 en catalog-summary.json,
+# calculados sobre los bytes del archivo. Un checkout con CRLF cambia el hash y
+# rompe la validación de datos. Se fijan a LF para que sea igual en todas partes.
+.claude/skills/ui-ux-pro-max/data/*.csv    text eol=lf
+.claude/skills/ui-ux-pro-max/data/*.json   text eol=lf
+.claude/skills/ui-ux-pro-max/data/stacks/*.csv text eol=lf

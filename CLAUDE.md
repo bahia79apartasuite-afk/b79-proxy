@@ -167,3 +167,26 @@ teléfono ve lo suyo y nada se sincroniza. Por eso ambas traen exportación a CS
 respaldo. Si algún día hacen falta compartidos, eso necesita una base de datos, no un parche.
 
 `_redirects` cubre `/b79` (portada) y las cuatro rutas, cada una con y sin barra final.
+
+## Skills de diseño instaladas
+
+En `.claude/skills/` viven tres skills de [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+v2.13.0 (MIT), copiadas tal cual del repositorio original:
+
+- `ui-ux-pro-max` — base de datos local consultable: 79 estilos, 192 paletas, 74 pares de
+  fuentes, 119 guías de UX, 105 iconos, 25 tipos de gráfico y 22 stacks. Se consulta con
+  `python3 .claude/skills/ui-ux-pro-max/scripts/search.py --domain style "consulta"`.
+- `ui-styling` — aplicar estilos a código real (Tailwind, shadcn/ui, modo oscuro).
+- `design` — logos, identidad corporativa, banners, iconos y presentaciones.
+
+Notas:
+
+- **`design` tapa la skill `design` que trae Claude Code** (el lienzo de diseño). Fue una
+  decisión consciente; si algún día hace falta el lienzo, hay que renombrar esta carpeta.
+- Todo es Python 3 y datos en CSV, sin dependencias que instalar. `validate_data.py`
+  comprueba que los catálogos estén íntegros.
+- Los CSV/JSON de `ui-ux-pro-max/data/` están fijados a LF en `.gitattributes`: sus hashes
+  van dentro de `catalog-summary.json` y con CRLF la validación falla.
+- **Estas skills sólo aconsejan sobre diseño.** No tocan `server.js` ni el flujo de login,
+  y las reglas de arriba (no tocar LobbyPMS, no exponer datos de huéspedes) mandan sobre
+  cualquier cosa que sugieran.
